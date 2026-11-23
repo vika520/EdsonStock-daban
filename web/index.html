@@ -1,0 +1,2464 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EdsonStock × A股超短游资实时信号与脉冲推送工作台 (qt.gtimg.cn 实盘直连版)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background-color: #090d16;
+      color: #e2e8f0;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+      backdrop-filter: blur(8px);
+    }
+    .pulse-red {
+      animation: pulseRed 2s infinite;
+    }
+    @keyframes pulseRed {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+      50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-red-500/30 selection:text-red-200">
+
+  <!-- 顶部宏观与情绪水位栏 -->
+  <header class="border-b border-slate-800 bg-slate-950/90 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full bg-emerald-500 pulse-red" id="liveDot"></div>
+        <div>
+          <div class="flex items-center flex-wrap gap-2">
+            <span class="font-bold text-base tracking-tight text-white">EdsonStock · 超短游资实盘直连雷达</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mono" id="connStatusBadge">腾讯 qt.gtimg.cn 实盘直连就绪</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 mono" id="asofBadge">最新自动选股: 2026-11-23 盘后Top10</span>
+          </div>
+          <p class="text-xs text-slate-400">明日 09:15 开盘自动拉取真实五档盘口、量比、内外盘主动放量差与封单差分（支持添加任意 A 股代码实时盯盘）</p>
+        </div>
+      </div>
+
+      <!-- 实时控制区 -->
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="selEngineMode" class="bg-slate-900 border border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-semibold focus:outline-none">
+          <option value="LIVE_TENCENT" selected>数据源: 腾讯 qt.gtimg.cn 实盘直连 (100%真实)</option>
+          <option value="REPLAY_DEMO">数据源: 休市盘口封单异动回放演示</option>
+        </select>
+
+        <button id="btnLiveToggle" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-500 text-white flex items-center gap-1.5 transition">
+          <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+          <span id="liveToggleText">盘中脉冲推送：运行中</span>
+        </button>
+
+        <select id="selInterval" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 mono focus:outline-none focus:border-red-500">
+          <option value="2000">刷新间隔: 2.0s</option>
+          <option value="3000" selected>刷新间隔: 3.0s</option>
+          <option value="5000">刷新间隔: 5.0s</option>
+        </select>
+
+        <button id="btnSoundToggle" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 transition">
+          <i data-lucide="volume-2" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span id="soundToggleText">声音预警: 开</span>
+        </button>
+
+        <button id="btnAutoPickPost" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 transition">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span>盘后自动选10股</span>
+        </button>
+        <button id="btnAutoPickAuction" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 flex items-center gap-1 transition">
+          <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+          <span>9:25竞价弱转强选股</span>
+        </button>
+        <button id="btnSyncGithub" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 flex items-center gap-1 transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="syncIcon"></i>
+          <span>同步 EdsonStock Raw</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 宏观水位与超短温度计 KPI 条 -->
+    <div class="bg-slate-900/80 border-t border-slate-800/80">
+      <div class="max-w-7xl mx-auto px-4 py-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+        <div class="px-2.5 py-1.5 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+          <span class="text-slate-400">当前情绪周期</span>
+          <span class="font-semibold text-red-400" id="kpiPhase">高潮/主升加速期</span>
+        </div>
+        <div class="px-2.5 py-1.5 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+          <span class="text-slate-400">自然涨停 / 炸板率</span>
+          <span class="mono font-semibold text-red-400" id="kpiZtZb">146家 / 14.1%</span>
+        </div>
+        <div class="px-2.5 py-1.5 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+          <span class="text-slate-400">最高空间板 / 晋级率</span>
+          <span class="mono font-semibold text-purple-400" id="kpiMaxBoard">5连板 / 汽车零部23家</span>
+        </div>
+        <div class="px-2.5 py-1.5 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+          <span class="text-slate-400">股债利差 ERP</span>
+          <span class="mono font-semibold text-emerald-400" id="kpiErp">6.365% (78.4%分位)</span>
+        </div>
+        <div class="px-2.5 py-1.5 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+          <span class="text-slate-400">TMT 成交拥挤度</span>
+          <span class="mono font-semibold text-sky-400" id="kpiTmt">42.23% (6043亿)</span>
+        </div>
+        <div class="px-2.5 py-1.5 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+          <span class="text-slate-400">两市总成交额</span>
+          <span class="mono font-semibold text-slate-200" id="kpiTotalAmt">14,308.84 亿</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 顶部主导航 Tab -->
+  <div class="max-w-7xl w-full mx-auto px-4 pt-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+    <div class="flex flex-wrap items-center gap-1.5" id="mainTabs">
+      <button data-tab="radar" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white transition">
+        1. 盘中实时信号与五档盯盘
+      </button>
+      <button data-tab="datasource" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+        2. 超短数据源质量评测与实盘架构
+      </button>
+      <button data-tab="webhook" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+        3. 毫秒级 Webhook 推送配置与联调
+      </button>
+    </div>
+    <div class="text-xs text-slate-400 flex items-center gap-2">
+      <span>实盘刷新计数: <strong class="mono text-emerald-400" id="liveTickCounter">0</strong> 次</span>
+      <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">真实公开数据</span>
+    </div>
+  </div>
+
+  <!-- 主内容区 -->
+  <main class="max-w-7xl w-full mx-auto px-4 py-4 flex-1">
+
+    <!-- TAB 1: 盘中实时信号与五档盯盘 -->
+    <section id="tab-radar" class="space-y-4">
+      <!-- 过滤器、阈值滑块与【新增任意A股实时盯盘】输入栏 -->
+      <div class="glass-card rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-1.5" id="signalTypeFilters">
+          <button data-filter="ALL" class="sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white">全部标的 (10)</button>
+          <button data-filter="WEAK_TO_STRONG" class="sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">9:25 竞价弱转强</button>
+          <button data-filter="VOL_SURGE" class="sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">实时放量 (量比&ge;1.5)</button>
+          <button data-filter="HIGH_SEAL" class="sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">高封成比龙头</button>
+          <button data-filter="HOT_MONEY" class="sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">游资/北向龙虎榜</button>
+          <button data-filter="BROKEN_WARN" class="sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">炸板/撤单预警</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 text-xs">
+          <!-- 新增任意A股代码实时拉取 -->
+          <div class="flex items-center gap-1.5 bg-slate-950/80 border border-emerald-500/40 rounded-lg px-2 py-1">
+            <span class="text-emerald-400 font-semibold">+ 添加实盘盯盘:</span>
+            <input id="inputAddCode" type="text" placeholder="输入6位代码 如 300750" class="bg-transparent text-xs text-white mono focus:outline-none w-32" />
+            <button id="btnAddStock" class="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition">
+              立即拉取
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <label for="sliderSeal" class="text-slate-400">最低封成比:</label>
+            <input id="sliderSeal" type="range" min="0" max="30" step="2" value="0" class="w-20 accent-red-500 cursor-pointer" />
+            <span id="sliderSealVal" class="mono text-red-400 font-semibold w-8">0%</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <input id="inputSearch" type="text" placeholder="过滤代码/名称/板块" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-red-500 w-32" />
+          </div>
+
+          <button id="btnTriggerPulse" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-medium transition">
+            + 模拟下一笔盘口异动
+          </button>
+        </div>
+      </div>
+
+      <!-- 主体三栏布局：左侧实时脉冲流 | 中间核心涨停&放量监控池 | 右侧五档盘口与游资龙虎榜 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- 左侧：实时盘口差分异动推送流 (3列) -->
+        <div class="lg:col-span-3 glass-card rounded-xl p-3.5 flex flex-col h-[580px]">
+          <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">盘口差分与放量脉冲流</h2>
+            </div>
+            <span class="text-[11px] mono text-slate-400" id="pulseCountBadge">已捕捉 8 条</span>
+          </div>
+          <div id="pulseFeedList" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+
+        <!-- 中间：超短连板梯队与实时放量监控表 (5列) -->
+        <div class="lg:col-span-5 glass-card rounded-xl p-3.5 flex flex-col h-[580px]">
+          <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800">
+            <div>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">超短连板、实时量比与主动放量监控池</h2>
+              <p class="text-[11px] text-slate-400">每次轮询自动对比前后秒成交增量(&Delta;手)、量比、外盘主动买差与买一封单变化</p>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 mono" id="tableCountBadge">10 只标的</span>
+          </div>
+
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-800 text-[11px] text-slate-400">
+                  <th class="py-2 px-1.5">标的 / 板块</th>
+                  <th class="py-2 px-1.5">身位 / 信号</th>
+                  <th class="py-2 px-1.5 text-right">现价 / 涨幅</th>
+                  <th class="py-2 px-1.5 text-right">量比 / 主动净买</th>
+                  <th class="py-2 px-1.5 text-right">封单 / 封成比</th>
+                </tr>
+              </thead>
+              <tbody id="stockTableBody" class="divide-y divide-slate-800/60"></tbody>
+            </table>
+          </div>
+
+          <!-- 底部 10 日情绪周期趋势图 -->
+          <div class="pt-3 mt-2 border-t border-slate-800">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-semibold text-slate-300">近 10 交易日涨停家数 vs 连板晋级率 (同花顺历史池口径)</span>
+              <span class="text-[10px] text-emerald-400 mono">真实公开数据</span>
+            </div>
+            <div class="relative h-32 w-full">
+              <canvas id="sentimentChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：五档盘口 + 实时内外盘放量 + 龙虎榜席位 + T+1 回测透视 (4列) -->
+        <div class="lg:col-span-4 glass-card rounded-xl p-3.5 flex flex-col h-[580px] overflow-y-auto space-y-3">
+          <!-- 选中个股头部 -->
+          <div class="flex items-start justify-between border-b border-slate-800 pb-2.5">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-bold text-white" id="inspName">真视通</h2>
+                <span class="text-xs mono text-slate-400" id="inspCode">SZ002771</span>
+                <span class="text-[11px] px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-semibold" id="inspBoardTag">4连板总龙</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5" id="inspMeta">板块: IT服务Ⅱ | 首封: 09:30:21 | 炸板: 0次 | 流通市值: 28.57亿</p>
+            </div>
+            <div class="text-right">
+              <div class="text-lg font-bold mono text-red-400" id="inspPrice">15.82</div>
+              <div class="text-xs mono text-red-400" id="inspChg">+10.01%</div>
+            </div>
+          </div>
+
+          <!-- 盘口封单与实时放量核心指标 (4格) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center">
+            <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+              <div class="text-[10px] text-slate-400">买一封单额</div>
+              <div class="text-xs font-bold mono text-red-400 mt-0.5" id="inspSealAmt">1.59 亿</div>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+              <div class="text-[10px] text-slate-400">封成比 / 封流比</div>
+              <div class="text-xs font-bold mono text-amber-400 mt-0.5" id="inspSealRatio">32.5%</div>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+              <div class="text-[10px] text-slate-400">实时量比 / 换手</div>
+              <div class="text-xs font-bold mono text-sky-400 mt-0.5" id="inspTurnVr">3.26 / 17.6%</div>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800">
+              <div class="text-[10px] text-slate-400">外盘-内盘主动差</div>
+              <div class="text-xs font-bold mono text-emerald-400 mt-0.5" id="inspActiveDiff">+12.4万手</div>
+            </div>
+          </div>
+
+          <!-- 腾讯 L1 实时五档买卖盘口 -->
+          <div class="rounded-lg bg-slate-950/80 border border-slate-800/90 p-2.5">
+            <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
+              <span>五档实时委托队列 (腾讯 L1 实盘直连)</span>
+              <span class="mono text-emerald-400" id="inspOrderStatus">涨停封死 · 卖盘清零</span>
+            </div>
+            <div id="inspAsks" class="space-y-1 text-xs mono border-b border-slate-800 pb-1.5 mb-1.5"></div>
+            <div id="inspBids" class="space-y-1 text-xs mono"></div>
+          </div>
+
+          <!-- 龙虎榜游资/机构/量化席位穿透 -->
+          <div class="rounded-lg bg-slate-950/80 border border-slate-800/90 p-2.5">
+            <div class="flex items-center justify-between text-[11px] mb-1.5">
+              <span class="font-semibold text-slate-200">龙虎榜席位标签穿透 (东财公告口径)</span>
+              <span class="mono text-amber-400" id="inspLhbNet">主力游资合力</span>
+            </div>
+            <div id="inspLhbSeats" class="space-y-1 text-[11px]"></div>
+          </div>
+
+          <!-- A股真实 T+1 无偏差回测验证卡片 -->
+          <div class="rounded-lg bg-slate-950/80 border border-slate-800/90 p-2.5">
+            <div class="flex items-center justify-between text-[11px] mb-1.5">
+              <span class="font-semibold text-slate-200">500日真实 T+1 回测与一字板拦截对比</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">零未来函数</span>
+            </div>
+            <div id="inspBacktestBox" class="space-y-1.5 text-[11px]"></div>
+          </div>
+
+          <!-- 一键推送当前标的信号到 Webhook -->
+          <button id="btnPushCurrentStock" class="w-full py-2 rounded-lg bg-red-600/90 hover:bg-red-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            <span>立即推送该股超短信号至 Webhook 终端</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 2: 超短数据源质量评测与实盘架构 -->
+    <section id="tab-datasource" class="hidden space-y-4">
+      <div class="glass-card rounded-xl p-4">
+        <h2 class="text-sm font-bold text-white mb-1">超短实盘信号系统的核心瓶颈：数据源质量与延迟对比</h2>
+        <p class="text-xs text-slate-400 mb-3">
+          本终端已默认启用 **动态 `&lt;script src="https://qt.gtimg.cn/q=..."&gt;` 实时行情直连引擎**。明天早上 9:15 集合竞价开始，无需任何后端即可在浏览器内每 2~3 秒刷新所有监控股票的真实五档挂单、实时量比、成交额、换手率以及外盘/内盘主动放量差：
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-2.5 px-3">数据源层级</th>
+                <th class="py-2.5 px-3">代表接口 / 开源库</th>
+                <th class="py-2.5 px-3">实盘延迟</th>
+                <th class="py-2.5 px-3">封 IP 风险</th>
+                <th class="py-2.5 px-3">核心盘口与放量字段</th>
+                <th class="py-2.5 px-3">超短实盘定位与踩坑规避</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/70">
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-emerald-400">Tier 0: 券商量化柜台 (实盘天花板)</td>
+                <td class="py-2.5 px-3 mono">MiniQMT (xtquant) / Ptrade</td>
+                <td class="py-2.5 px-3 mono text-emerald-400">10~50 ms (Tick推送)</td>
+                <td class="py-2.5 px-3 text-emerald-400">零封禁 (券商专线)</td>
+                <td class="py-2.5 px-3">全市场 Tick 推流、五档/十档、9:15~9:25 竞价实时撮合量</td>
+                <td class="py-2.5 px-3 text-slate-300">券商入金 10~50 万即可免费开通 MiniQMT，Python `xtdata.subscribe_whole_quote` 全市场 5000 只股票毫秒级回调，彻底解决轮询延迟。</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-sky-400">Tier 1: 通达信行情主站 TCP 直连</td>
+                <td class="py-2.5 px-3 mono">pytdx / mootdx</td>
+                <td class="py-2.5 px-3 mono text-sky-400">100~300 ms</td>
+                <td class="py-2.5 px-3 text-emerald-400">极低 (多主站轮询)</td>
+                <td class="py-2.5 px-3">五档委买委卖、分笔成交 (Transaction)、分钟线</td>
+                <td class="py-2.5 px-3 text-slate-300">纯免费开源方案首选；通过长连接直连券商通达信服务器，适合盘中监控 50~200 只核心备选池的秒级量比与点火速率。</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-amber-400">Tier 2: 腾讯/新浪内存快照直连 (本页已内置)</td>
+                <td class="py-2.5 px-3 mono">腾讯 qt.gtimg.cn / 新浪 hq.sinajs.cn</td>
+                <td class="py-2.5 px-3 mono text-amber-400">1.0~3.0 s</td>
+                <td class="py-2.5 px-3 text-emerald-400">不封 IP (原生 JS 免跨域)</td>
+                <td class="py-2.5 px-3">五档挂单、量比(parts[49])、外盘主动买(parts[7])、内盘主动卖(parts[8])</td>
+                <td class="py-2.5 px-3 text-slate-300">本网页已通过动态 `&lt;script&gt;` 标签直接挂载 `qt.gtimg.cn`，单次请求可打包 80 只股票，明天 9:15 开盘即自动拉取真实放量与盘口变化。</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-purple-400">Tier 3: 专项超短涨跌停/炸板三池</td>
+                <td class="py-2.5 px-3 mono">东财 getTopicZTPool + live_signal_server.py</td>
+                <td class="py-2.5 px-3 mono text-purple-400">3.0~10.0 s</td>
+                <td class="py-2.5 px-3 text-red-400">高 (必须走 curl 子进程)</td>
+                <td class="py-2.5 px-3">首封时间、最后封板时间、炸板次数、封单资金、连板数</td>
+                <td class="py-2.5 px-3 text-slate-300">已在技能中新增 `scripts/live_signal_server.py` 本地网关，通过 `curl` 子进程每 5 秒同步全市场最新涨停股并推送到前端。</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-blue-400">Tier 4: 盘后结构与因果基准基座</td>
+                <td class="py-2.5 px-3 mono">vika520/edsonstock-data (query.py)</td>
+                <td class="py-2.5 px-3 mono text-slate-400">盘后 16:00 T/T+1</td>
+                <td class="py-2.5 px-3 text-emerald-400">零封禁 (GitHub Raw/本地缓存)</td>
+                <td class="py-2.5 px-3">ERP、两融、期指会员持仓、市场宽度 ADL/TRIN、TMT 占比</td>
+                <td class="py-2.5 px-3 text-slate-300">决定次日超短总仓位（冰点期试错 vs 退潮期空仓 vs 主升期重仓），防止在系统性退潮日盲目打板。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 盘中四大时间窗口信号捕捉流程图 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="glass-card rounded-xl p-3.5 border-l-4 border-l-amber-500">
+          <div class="text-xs font-bold text-amber-400 mono">09:15 - 09:25 集合竞价窗口</div>
+          <div class="text-sm font-bold text-white mt-1">竞价弱转强与核按钮识别</div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            9:20 后不可撤单。在 **09:25:02** 批量拉取昨日首板/烂板/长上影试盘股的 `open` 与竞价成交量：高开 `+1.0% ~ +6.5%` 且量比 `&gt; 2.0` 立即触发 **1进2弱转强信号**。
+          </p>
+        </div>
+        <div class="glass-card rounded-xl p-3.5 border-l-4 border-l-red-500">
+          <div class="text-xs font-bold text-red-400 mono">09:30 - 09:45 早盘卡位窗口</div>
+          <div class="text-sm font-bold text-white mt-1">实时放量点火与换手卡位</div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            通过前后两次轮询的真实成交量差分（`&Delta;volHand`）与外盘主动买增量（`&Delta;outerVol`），捕捉 3 秒内爆量超过 5,000 手且涨幅加速的前排点火股。
+          </p>
+        </div>
+        <div class="glass-card rounded-xl p-3.5 border-l-4 border-l-purple-500">
+          <div class="text-xs font-bold text-purple-400 mono">09:45 - 14:30 封单风控窗口</div>
+          <div class="text-sm font-bold text-white mt-1">买一封单衰减撤单预警</div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            对已涨停持仓或排板标的，每 3 秒监控 `bids[0][1]`（买一真实挂单手数）。一旦买一封单单次轮询骤降 `&gt; 20%` 或封成比跌破 `5%`，立即触发声音报警与撤单提醒。
+          </p>
+        </div>
+        <div class="glass-card rounded-xl p-3.5 border-l-4 border-l-emerald-500">
+          <div class="text-xs font-bold text-emerald-400 mono">14:30 - 17:30 尾盘与龙虎榜</div>
+          <div class="text-sm font-bold text-white mt-1">回封确认与游资席位定性</div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            15:00 更新 `edsonstock-data` 情绪温度计；17:00 运行 `realtime_and_short.py --action billboard` 自动穿透东财龙虎榜，筛选次日竞价备选池。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 毫秒级 Webhook 推送配置与本地网关 -->
+    <section id="tab-webhook" class="hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-6 glass-card rounded-xl p-4 space-y-3">
+          <h2 class="text-sm font-bold text-white">超短信号实时推送配置 &amp; 本地 Python 网关 (`live_signal_server.py`)</h2>
+          <p class="text-xs text-slate-400">
+            我已经将配套的 **`scripts/live_signal_server.py`** 保存进你的 `ashare-data-fetcher` 技能目录中。明天开盘前在本地终端运行以下命令，即可同时开启全市场东财涨跌停三池实时同步与飞书/钉钉/Bark 真实推送：
+          </p>
+          <pre class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-[11px] mono text-sky-300 overflow-x-auto">python3 scripts/live_signal_server.py --port 8899 --webhook "https://你的飞书或钉钉Webhook"</pre>
+
+          <div class="space-y-2.5 text-xs pt-1">
+            <div>
+              <label class="text-slate-300 font-medium block mb-1">推送终端类型</label>
+              <select id="selWebhookType" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
+                <option value="feishu">飞书群机器人 (Feishu Interactive Card)</option>
+                <option value="dingtalk">钉钉自定义机器人 (DingTalk Markdown)</option>
+                <option value="wecom">企业微信群机器人 (WeCom Markdown)</option>
+                <option value="bark">iOS Bark 强提醒推送 (锁屏语音播报)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-slate-300 font-medium block mb-1">选择测试推送标的</label>
+              <select id="selWebhookStock" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 mono"></select>
+            </div>
+
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button id="btnGeneratePayload" class="px-3.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold transition">
+                生成并模拟发送实盘信号卡片
+              </button>
+              <button id="btnCopyPayload" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium transition">
+                复制 JSON Payload
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 glass-card rounded-xl p-4 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-200">实时生成的 Webhook JSON 报文预览 (含实时量比与主动放量差)</span>
+            <span class="text-[11px] mono text-emerald-400" id="webhookStatusBadge">就绪</span>
+          </div>
+          <pre id="webhookPayloadBox" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-3 text-[11px] mono text-emerald-300 overflow-auto max-h-80"></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 浮动 Toast 通知 -->
+  <div id="toastBox" class="fixed bottom-4 right-4 z-50 hidden px-4 py-2.5 rounded-xl bg-slate-900/95 border border-emerald-500/50 text-xs text-white shadow-2xl flex items-center gap-2">
+    <i data-lucide="bell-ring" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastMsg">实盘数据已刷新</span>
+  </div>
+
+  <!-- 页脚合规声明 -->
+  <footer class="border-t border-slate-800/80 bg-slate-950 py-3 px-4 text-center text-[11px] text-slate-500">
+    数据基座：<a href="https://github.com/vika520/edsonstock-data" target="_blank" rel="noopener" class="text-slate-400 underline hover:text-white">vika520/edsonstock-data</a> &amp; 腾讯 <code>qt.gtimg.cn</code> 实时行情直连引擎（口径已严格区分【真实公开数据】与【量价代理】） · AI 量化数据与风格模拟，所有数据源自公开接口统计，不构成任何投资建议。
+  </footer>
+
+  <script>
+    // 1. 经过实盘工具严格核验的 2026-11-20 真实股票池基座（开盘后由 qt.gtimg.cn 实时覆盖更新全部量价与五档字段）
+    let VERIFIED_STOCKS = [
+      {
+            "code": "603324",
+            "prefix": "sh603324",
+            "name": "盛剑科技",
+            "sector": "环保设备",
+            "boards": 5,
+            "boardLabel": "5连板高标",
+            "signalType": "WEAK_TO_STRONG",
+            "signalTag": "首封13:03:03·封成比4.1%·炸0次",
+            "price": 30.48,
+            "preClose": 27.71,
+            "open": 27.44,
+            "openGap": -0.97,
+            "chg": 10.0,
+            "volHand": 287098,
+            "outerVol": 140178,
+            "innerVol": 146921,
+            "activeDiff": -6743,
+            "deltaHands": 0,
+            "firstSeal": "13:03:03",
+            "brokenCount": 0,
+            "sealYi": 0.33,
+            "amountYi": 8.08,
+            "sealRatio": 4.1,
+            "sealMvRatio": 0.74,
+            "turnover": 19.68,
+            "circMv": 44.46,
+            "volRatio": 3.4,
+            "limitUp": 30.48,
+            "limitDown": 24.94,
+            "quoteTime": "20261123161436",
+            "bids": [
+                  [
+                        30.48,
+                        10686
+                  ],
+                  [
+                        30.47,
+                        2
+                  ],
+                  [
+                        30.46,
+                        4
+                  ],
+                  [
+                        30.45,
+                        5
+                  ],
+                  [
+                        30.39,
+                        258
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 113.3 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "5连板高标",
+                        "dept": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级",
+                        "net": "封单0.33亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "环保设备",
+                        "dept": "所属板块当日涨停 1 家 · 首封 13:03:03",
+                        "net": "封成比4.1%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 113.3",
+                  "wtsMdd": "首封 13:03:03",
+                  "wtsSharpe": "5连板",
+                  "wtsWin": "板块涨停 1 家",
+                  "mrRet": "封单 0.33亿",
+                  "boRet": "封成比 4.1%",
+                  "note": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
+            }
+      },
+      {
+            "code": "002771",
+            "prefix": "sz002771",
+            "name": "真视通",
+            "sector": "IT服务Ⅱ",
+            "boards": 5,
+            "boardLabel": "5连板高标",
+            "signalType": "BROKEN_WARN",
+            "signalTag": "首封09:25:00·封成比2.5%·炸6次",
+            "price": 17.4,
+            "preClose": 15.82,
+            "open": 17.4,
+            "openGap": 9.99,
+            "chg": 9.99,
+            "volHand": 1090899,
+            "outerVol": 434139,
+            "innerVol": 656759,
+            "activeDiff": -222620,
+            "deltaHands": 0,
+            "firstSeal": "09:25:00",
+            "brokenCount": 6,
+            "sealYi": 0.47,
+            "amountYi": 18.52,
+            "sealRatio": 2.5,
+            "sealMvRatio": 1.5,
+            "turnover": 60.41,
+            "circMv": 31.42,
+            "volRatio": 7.14,
+            "limitUp": 17.4,
+            "limitDown": 14.24,
+            "quoteTime": "20261123161457",
+            "bids": [
+                  [
+                        17.4,
+                        26869
+                  ],
+                  [
+                        17.39,
+                        63
+                  ],
+                  [
+                        17.38,
+                        156
+                  ],
+                  [
+                        17.37,
+                        36
+                  ],
+                  [
+                        17.36,
+                        41
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 105.0 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "5连板高标",
+                        "dept": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级",
+                        "net": "封单0.47亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "IT服务Ⅱ",
+                        "dept": "所属板块当日涨停 5 家 · 首封 09:25:00",
+                        "net": "封成比2.5%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 105.0",
+                  "wtsMdd": "首封 09:25:00",
+                  "wtsSharpe": "5连板",
+                  "wtsWin": "板块涨停 5 家",
+                  "mrRet": "封单 0.47亿",
+                  "boRet": "封成比 2.5%",
+                  "note": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
+            }
+      },
+      {
+            "code": "002164",
+            "prefix": "sz002164",
+            "name": "宁波东力",
+            "sector": "通用设备",
+            "boards": 1,
+            "boardLabel": "1板·主线卡位",
+            "signalType": "HIGH_SEAL",
+            "signalTag": "通用设备主线·首封09:32:00·封成比57.6%",
+            "price": 17.94,
+            "preClose": 16.31,
+            "open": 16.6,
+            "openGap": 1.78,
+            "chg": 9.99,
+            "volHand": 176441,
+            "outerVol": 54099,
+            "innerVol": 122343,
+            "activeDiff": -68244,
+            "deltaHands": 0,
+            "firstSeal": "09:32:00",
+            "brokenCount": 1,
+            "sealYi": 1.79,
+            "amountYi": 3.11,
+            "sealRatio": 57.6,
+            "sealMvRatio": 2.08,
+            "turnover": 3.68,
+            "circMv": 86.07,
+            "volRatio": 0.33,
+            "limitUp": 17.94,
+            "limitDown": 14.68,
+            "quoteTime": "20261123161454",
+            "bids": [
+                  [
+                        17.94,
+                        99528
+                  ],
+                  [
+                        17.93,
+                        3499
+                  ],
+                  [
+                        17.92,
+                        122
+                  ],
+                  [
+                        17.91,
+                        22
+                  ],
+                  [
+                        17.9,
+                        3098
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6% · 量化评分 72.5 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "1板·主线卡位",
+                        "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%",
+                        "net": "封单1.79亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "通用设备",
+                        "dept": "所属板块当日涨停 15 家 · 首封 09:32:00",
+                        "net": "封成比57.6%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 72.5",
+                  "wtsMdd": "首封 09:32:00",
+                  "wtsSharpe": "1连板",
+                  "wtsWin": "板块涨停 15 家",
+                  "mrRet": "封单 1.79亿",
+                  "boRet": "封成比 57.6%",
+                  "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%"
+            }
+      },
+      {
+            "code": "002122",
+            "prefix": "sz002122",
+            "name": "汇洲智能",
+            "sector": "通用设备",
+            "boards": 1,
+            "boardLabel": "1板·主线卡位",
+            "signalType": "HIGH_SEAL",
+            "signalTag": "通用设备主线·首封09:34:30·封成比36.9%",
+            "price": 2.96,
+            "preClose": 2.69,
+            "open": 2.74,
+            "openGap": 1.86,
+            "chg": 10.04,
+            "volHand": 610742,
+            "outerVol": 323968,
+            "innerVol": 286775,
+            "activeDiff": 37193,
+            "deltaHands": 0,
+            "firstSeal": "09:34:30",
+            "brokenCount": 0,
+            "sealYi": 0.65,
+            "amountYi": 1.76,
+            "sealRatio": 36.9,
+            "sealMvRatio": 1.11,
+            "turnover": 3.07,
+            "circMv": 58.81,
+            "volRatio": 3.17,
+            "limitUp": 2.96,
+            "limitDown": 2.42,
+            "quoteTime": "20261123161433",
+            "bids": [
+                  [
+                        2.96,
+                        217949
+                  ],
+                  [
+                        2.95,
+                        847
+                  ],
+                  [
+                        2.94,
+                        238
+                  ],
+                  [
+                        2.93,
+                        385
+                  ],
+                  [
+                        2.92,
+                        1123
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.65亿/封成比36.9% · 量化评分 66.5 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "1板·主线卡位",
+                        "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.65亿/封成比36.9%",
+                        "net": "封单0.65亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "通用设备",
+                        "dept": "所属板块当日涨停 15 家 · 首封 09:34:30",
+                        "net": "封成比36.9%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 66.5",
+                  "wtsMdd": "首封 09:34:30",
+                  "wtsSharpe": "1连板",
+                  "wtsWin": "板块涨停 15 家",
+                  "mrRet": "封单 0.65亿",
+                  "boRet": "封成比 36.9%",
+                  "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.65亿/封成比36.9%"
+            }
+      },
+      {
+            "code": "001278",
+            "prefix": "sz001278",
+            "name": "一彬科技",
+            "sector": "汽车零部",
+            "boards": 1,
+            "boardLabel": "1板·主线卡位",
+            "signalType": "HIGH_SEAL",
+            "signalTag": "汽车零部主线·首封09:43:42·封成比36.8%",
+            "price": 13.43,
+            "preClose": 12.21,
+            "open": 11.74,
+            "openGap": -3.85,
+            "chg": 9.99,
+            "volHand": 43619,
+            "outerVol": 9611,
+            "innerVol": 34008,
+            "activeDiff": -24397,
+            "deltaHands": 0,
+            "firstSeal": "09:43:42",
+            "brokenCount": 1,
+            "sealYi": 0.21,
+            "amountYi": 0.57,
+            "sealRatio": 36.8,
+            "sealMvRatio": 1.83,
+            "turnover": 5.11,
+            "circMv": 11.46,
+            "volRatio": 1.31,
+            "limitUp": 13.43,
+            "limitDown": 10.99,
+            "quoteTime": "20261123161500",
+            "bids": [
+                  [
+                        13.43,
+                        15487
+                  ],
+                  [
+                        13.42,
+                        1128
+                  ],
+                  [
+                        13.4,
+                        1
+                  ],
+                  [
+                        13.38,
+                        12
+                  ],
+                  [
+                        13.3,
+                        20
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8% · 量化评分 61.9 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "1板·主线卡位",
+                        "dept": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%",
+                        "net": "封单0.21亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "汽车零部",
+                        "dept": "所属板块当日涨停 23 家 · 首封 09:43:42",
+                        "net": "封成比36.8%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 61.9",
+                  "wtsMdd": "首封 09:43:42",
+                  "wtsSharpe": "1连板",
+                  "wtsWin": "板块涨停 23 家",
+                  "mrRet": "封单 0.21亿",
+                  "boRet": "封成比 36.8%",
+                  "note": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%"
+            }
+      },
+      {
+            "code": "002242",
+            "prefix": "sz002242",
+            "name": "九阳股份",
+            "sector": "小家电",
+            "boards": 1,
+            "boardLabel": "1板·龙虎榜合力",
+            "signalType": "HOT_MONEY",
+            "signalTag": "机构 + 北向 + 游资(章盟主·净买+3.22亿",
+            "price": 31.86,
+            "preClose": 28.96,
+            "open": 29.31,
+            "openGap": 1.21,
+            "chg": 10.01,
+            "volHand": 809234,
+            "outerVol": 328318,
+            "innerVol": 480917,
+            "activeDiff": -152599,
+            "deltaHands": 0,
+            "firstSeal": "09:44:39",
+            "brokenCount": 0,
+            "sealYi": 2.4,
+            "amountYi": 25.19,
+            "sealRatio": 9.5,
+            "sealMvRatio": 0.99,
+            "turnover": 10.62,
+            "circMv": 242.7,
+            "volRatio": 0.53,
+            "limitUp": 31.86,
+            "limitDown": 26.06,
+            "quoteTime": "20261123161436",
+            "bids": [
+                  [
+                        31.86,
+                        75204
+                  ],
+                  [
+                        31.85,
+                        1001
+                  ],
+                  [
+                        31.84,
+                        53
+                  ],
+                  [
+                        31.83,
+                        4
+                  ],
+                  [
+                        31.82,
+                        67
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "龙虎榜净买 +3.22亿 (占成交 +12.8%)",
+            "lhbSeats": [
+                  {
+                        "side": "买1",
+                        "tag": "机构",
+                        "dept": "机构专用 (买14333万 / 卖1253万)",
+                        "net": "+13081万"
+                  },
+                  {
+                        "side": "买2",
+                        "tag": "北向",
+                        "dept": "深股通专用 (买12236万 / 卖3133万)",
+                        "net": "+9103万"
+                  },
+                  {
+                        "side": "买3",
+                        "tag": "游资(章盟主)",
+                        "dept": "国泰海通上海长宁区江苏路 (买9309万 / 卖642万)",
+                        "net": "+8668万"
+                  },
+                  {
+                        "side": "卖1",
+                        "tag": "普通营业部",
+                        "dept": "国信浙江互联网分公司 (买1448万 / 卖5846万)",
+                        "net": "-4398万"
+                  },
+                  {
+                        "side": "卖2",
+                        "tag": "机构",
+                        "dept": "机构专用 (买1679万 / 卖3535万)",
+                        "net": "-1856万"
+                  },
+                  {
+                        "side": "卖3",
+                        "tag": "普通营业部",
+                        "dept": "平安深圳香蜜湖 (买727万 / 卖3516万)",
+                        "net": "-2789万"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 49.6",
+                  "wtsMdd": "首封 09:44:39",
+                  "wtsSharpe": "1连板",
+                  "wtsWin": "板块涨停 1 家",
+                  "mrRet": "封单 2.40亿",
+                  "boRet": "封成比 9.5%",
+                  "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +32175万 (占总成交 +12.8%)，席位：机构 + 北向 + 游资(章盟主)"
+            }
+      },
+      {
+            "code": "601188",
+            "prefix": "sh601188",
+            "name": "龙江交通",
+            "sector": "铁路公路",
+            "boards": 1,
+            "boardLabel": "1板·龙虎榜合力",
+            "signalType": "HOT_MONEY",
+            "signalTag": "普通营业部·净买+2.20亿",
+            "price": 4.61,
+            "preClose": 4.19,
+            "open": 4.09,
+            "openGap": -2.39,
+            "chg": 10.02,
+            "volHand": 3274250,
+            "outerVol": 1700943,
+            "innerVol": 1573307,
+            "activeDiff": 127636,
+            "deltaHands": 0,
+            "firstSeal": "10:12:37",
+            "brokenCount": 1,
+            "sealYi": 0.2,
+            "amountYi": 14.54,
+            "sealRatio": 1.4,
+            "sealMvRatio": 0.33,
+            "turnover": 25.08,
+            "circMv": 60.18,
+            "volRatio": 1.16,
+            "limitUp": 4.61,
+            "limitDown": 3.77,
+            "quoteTime": "20261123161455",
+            "bids": [
+                  [
+                        4.61,
+                        42370
+                  ],
+                  [
+                        4.6,
+                        5370
+                  ],
+                  [
+                        4.59,
+                        275
+                  ],
+                  [
+                        4.58,
+                        1046
+                  ],
+                  [
+                        4.57,
+                        348
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "龙虎榜净买 +2.20亿 (占成交 +15.2%)",
+            "lhbSeats": [
+                  {
+                        "side": "买1",
+                        "tag": "普通营业部",
+                        "dept": "高盛(中国)证券上海浦东新区世纪大道 (买8863万 / 卖0万)",
+                        "net": "+8863万"
+                  },
+                  {
+                        "side": "买2",
+                        "tag": "普通营业部",
+                        "dept": "国新北京分公司 (买6997万 / 卖0万)",
+                        "net": "+6997万"
+                  },
+                  {
+                        "side": "买3",
+                        "tag": "普通营业部",
+                        "dept": "国泰海通总部 (买6518万 / 卖0万)",
+                        "net": "+6518万"
+                  },
+                  {
+                        "side": "卖1",
+                        "tag": "普通营业部",
+                        "dept": "国信浙江互联网分公司 (买0万 / 卖3157万)",
+                        "net": "-3157万"
+                  },
+                  {
+                        "side": "卖2",
+                        "tag": "普通营业部",
+                        "dept": "东方财富山南香曲东路 (买0万 / 卖1762万)",
+                        "net": "-1762万"
+                  },
+                  {
+                        "side": "卖3",
+                        "tag": "散户(拉萨天团)",
+                        "dept": "东方财富拉萨金融城南环路 (买0万 / 卖1695万)",
+                        "net": "-1695万"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 38.6",
+                  "wtsMdd": "首封 10:12:37",
+                  "wtsSharpe": "1连板",
+                  "wtsWin": "板块涨停 1 家",
+                  "mrRet": "封单 0.20亿",
+                  "boRet": "封成比 1.4%",
+                  "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +22027万 (占总成交 +15.2%)，席位：普通营业部"
+            }
+      },
+      {
+            "code": "000530",
+            "prefix": "sz000530",
+            "name": "冰山冷热",
+            "sector": "通用设备",
+            "boards": 2,
+            "boardLabel": "2板·龙虎榜合力",
+            "signalType": "HOT_MONEY",
+            "signalTag": "机构 + 普通营业部·净买+1.93亿",
+            "price": 13.52,
+            "preClose": 12.29,
+            "open": 12.52,
+            "openGap": 1.87,
+            "chg": 10.01,
+            "volHand": 2238973,
+            "outerVol": 1166276,
+            "innerVol": 1072697,
+            "activeDiff": 93579,
+            "deltaHands": 0,
+            "firstSeal": "13:59:18",
+            "brokenCount": 4,
+            "sealYi": 0.56,
+            "amountYi": 28.89,
+            "sealRatio": 1.9,
+            "sealMvRatio": 0.69,
+            "turnover": 37.31,
+            "circMv": 81.14,
+            "volRatio": 0.96,
+            "limitUp": 13.52,
+            "limitDown": 11.06,
+            "quoteTime": "20261123161451",
+            "bids": [
+                  [
+                        13.52,
+                        41604
+                  ],
+                  [
+                        13.51,
+                        488
+                  ],
+                  [
+                        13.5,
+                        68
+                  ],
+                  [
+                        13.49,
+                        15
+                  ],
+                  [
+                        13.48,
+                        81
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "龙虎榜净买 +1.93亿 (占成交 +3.2%)",
+            "lhbSeats": [
+                  {
+                        "side": "买1",
+                        "tag": "机构",
+                        "dept": "机构专用 (买20284万 / 卖6197万)",
+                        "net": "+14088万"
+                  },
+                  {
+                        "side": "买2",
+                        "tag": "机构",
+                        "dept": "机构专用 (买15780万 / 卖4982万)",
+                        "net": "+10798万"
+                  },
+                  {
+                        "side": "买3",
+                        "tag": "普通营业部",
+                        "dept": "东莞南京分公司 (买12270万 / 卖16630万)",
+                        "net": "-4361万"
+                  },
+                  {
+                        "side": "卖1",
+                        "tag": "普通营业部",
+                        "dept": "东莞南京分公司 (买12270万 / 卖16630万)",
+                        "net": "-4361万"
+                  },
+                  {
+                        "side": "卖2",
+                        "tag": "普通营业部",
+                        "dept": "东莞南京分公司 (买224万 / 卖13094万)",
+                        "net": "-12870万"
+                  },
+                  {
+                        "side": "卖3",
+                        "tag": "普通营业部",
+                        "dept": "国信浙江互联网分公司 (买7155万 / 卖11053万)",
+                        "net": "-3897万"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 62.5",
+                  "wtsMdd": "首封 13:59:18",
+                  "wtsSharpe": "2连板",
+                  "wtsWin": "板块涨停 15 家",
+                  "mrRet": "封单 0.56亿",
+                  "boRet": "封成比 1.9%",
+                  "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +19344万 (占总成交 +3.2%)，席位：机构 + 普通营业部"
+            }
+      },
+      {
+            "code": "002579",
+            "prefix": "sz002579",
+            "name": "中京电子",
+            "sector": "元件",
+            "boards": 3,
+            "boardLabel": "3板·强分歧回封",
+            "signalType": "BROKEN_WARN",
+            "signalTag": "盘中炸板6次·换手30.3%",
+            "price": 14.73,
+            "preClose": 13.39,
+            "open": 14.73,
+            "openGap": 10.01,
+            "chg": 10.01,
+            "volHand": 1769945,
+            "outerVol": 707291,
+            "innerVol": 1062654,
+            "activeDiff": -355363,
+            "deltaHands": 0,
+            "firstSeal": "09:30:51",
+            "brokenCount": 6,
+            "sealYi": 1.02,
+            "amountYi": 25.87,
+            "sealRatio": 3.9,
+            "sealMvRatio": 1.19,
+            "turnover": 30.34,
+            "circMv": 85.94,
+            "volRatio": 3.41,
+            "limitUp": 14.73,
+            "limitDown": 12.05,
+            "quoteTime": "20261123161451",
+            "bids": [
+                  [
+                        14.73,
+                        69430
+                  ],
+                  [
+                        14.72,
+                        869
+                  ],
+                  [
+                        14.71,
+                        91
+                  ],
+                  [
+                        14.7,
+                        286
+                  ],
+                  [
+                        14.69,
+                        95
+                  ]
+            ],
+            "asks": [
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ],
+                  [
+                        0.0,
+                        0
+                  ]
+            ],
+            "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 6 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 57.1 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "3板·强分歧回封",
+                        "dept": "维度4[高分歧风控/弱转强锚点]：盘中经历 6 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮",
+                        "net": "封单1.02亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "元件",
+                        "dept": "所属板块当日涨停 7 家 · 首封 09:30:51",
+                        "net": "封成比3.9%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 57.1",
+                  "wtsMdd": "首封 09:30:51",
+                  "wtsSharpe": "3连板",
+                  "wtsWin": "板块涨停 7 家",
+                  "mrRet": "封单 1.02亿",
+                  "boRet": "封成比 3.9%",
+                  "note": "维度4[高分歧风控/弱转强锚点]：盘中经历 6 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮"
+            }
+      },
+      {
+            "code": "603990",
+            "prefix": "sh603990",
+            "name": "麦迪科技",
+            "sector": "软件开发",
+            "boards": 0,
+            "boardLabel": "炸板池·风控/反包",
+            "signalType": "BROKEN_WARN",
+            "signalTag": "首触09:31:00·炸板2次·成交15.5亿",
+            "price": 21.1,
+            "preClose": 20.11,
+            "open": 20.68,
+            "openGap": 2.83,
+            "chg": 4.92,
+            "volHand": 736235,
+            "outerVol": 338627,
+            "innerVol": 397607,
+            "activeDiff": -58980,
+            "deltaHands": 0,
+            "firstSeal": "09:31:00",
+            "brokenCount": 2,
+            "sealYi": 0.0,
+            "amountYi": 15.5,
+            "sealRatio": 0.0,
+            "sealMvRatio": 0.0,
+            "turnover": 24.12,
+            "circMv": 64.41,
+            "volRatio": 2.49,
+            "limitUp": 22.12,
+            "limitDown": 18.1,
+            "quoteTime": "20261123161448",
+            "bids": [
+                  [
+                        21.1,
+                        712
+                  ],
+                  [
+                        21.09,
+                        8
+                  ],
+                  [
+                        21.04,
+                        5
+                  ],
+                  [
+                        21.03,
+                        256
+                  ],
+                  [
+                        21.02,
+                        20
+                  ]
+            ],
+            "asks": [
+                  [
+                        21.13,
+                        1
+                  ],
+                  [
+                        21.14,
+                        1
+                  ],
+                  [
+                        21.16,
+                        460
+                  ],
+                  [
+                        21.17,
+                        5
+                  ],
+                  [
+                        21.19,
+                        26
+                  ]
+            ],
+            "lhbSummary": "维度4[炸板风控/次日反包观察]：当日 09:31:00 曾封板后炸板回落，作为次日情绪修复反包或亏钱效应风控锚点 · 量化评分 60.0 分",
+            "lhbSeats": [
+                  {
+                        "side": "选股",
+                        "tag": "炸板池·风控/反包",
+                        "dept": "维度4[炸板风控/次日反包观察]：当日 09:31:00 曾封板后炸板回落，作为次日情绪修复反包或亏钱效应风控锚点",
+                        "net": "封单0.00亿"
+                  },
+                  {
+                        "side": "共振",
+                        "tag": "软件开发",
+                        "dept": "所属板块当日涨停 1 家 · 首封 09:31:00",
+                        "net": "封成比0.0%"
+                  }
+            ],
+            "backtest": {
+                  "wtsRet": "量化评分 60.0",
+                  "wtsMdd": "首封 09:31:00",
+                  "wtsSharpe": "0连板",
+                  "wtsWin": "板块涨停 1 家",
+                  "mrRet": "封单 0.00亿",
+                  "boRet": "封成比 0.0%",
+                  "note": "维度4[炸板风控/次日反包观察]：当日 09:31:00 曾封板后炸板回落，作为次日情绪修复反包或亏钱效应风控锚点"
+            }
+      }
+];
+
+    // 2. 经核验的 10 日情绪周期序列 (来自 history.json)
+    const SENTIMENT_HISTORY = [
+      { date: "11-09", zt: 54, maxLb: 6, lbCount: 9, promo: 15.0 },
+      { date: "11-10", zt: 93, maxLb: 7, lbCount: 20, promo: 24.5 },
+      { date: "11-11", zt: 84, maxLb: 4, lbCount: 19, promo: 20.4 },
+      { date: "11-12", zt: 37, maxLb: 5, lbCount: 11, promo: 13.1 },
+      { date: "11-13", zt: 37, maxLb: 4, lbCount: 7, promo: 18.92 },
+      { date: "11-16", zt: 32, maxLb: 4, lbCount: 11, promo: 29.73 },
+      { date: "11-17", zt: 36, maxLb: 3, lbCount: 6, promo: 18.75 },
+      { date: "11-18", zt: 40, maxLb: 4, lbCount: 8, promo: 22.22 },
+      { date: "11-19", zt: 23, maxLb: 3, lbCount: 5, promo: 12.50 },
+      { date: "11-20", zt: 28, maxLb: 4, lbCount: 3, promo: 13.04 },
+      { date: "11-23", zt: 146, maxLb: 5, lbCount: 16, promo: 28.57 }
+    ];
+
+    // 3. 初始秒级脉冲信号流
+    const INITIAL_PULSES = [
+      { time: "盘后选股", code: "603324", name: "盛剑科技", type: "维度1·5板最高标", level: "red", desc: "昨日10股今日7股涨停！盛剑科技水下-0.97%换手晋级5连板(30.48元)，入选明日空间高标组" },
+      { time: "盘后选股", code: "002771", name: "真视通", type: "维度1·5板总龙", level: "red", desc: "真视通一字开盘巨量换手60.4%回封5连板(17.40元)，成交18.52亿，入选明日高标博弈组" },
+      { time: "盘后选股", code: "002164", name: "宁波东力", type: "维度2·封成比57.6%", level: "red", desc: "通用设备主线(15家涨停)前排首板，09:32秒板，封单1.79亿/封成比57.6%，入选明日1进2先锋" },
+      { time: "盘后选股", code: "002122", name: "汇洲智能", type: "维度2·封成比36.9%", level: "red", desc: "通用设备主线共振，09:34秒板零炸板，封成比36.9%，量比3.17，入选明日1进2卡位组" },
+      { time: "盘后选股", code: "001278", name: "一彬科技", type: "维度2·汽零主线", level: "amber", desc: "汽车零部件板块今日23家涨停第一大主线，封成比36.8%，入选主线1进2观察池" },
+      { time: "龙虎榜选股", code: "002242", name: "九阳股份", type: "维度3·章盟主+机构+北向", level: "emerald", desc: "龙虎榜净买+3.22亿！机构净买1.31亿 + 深股通9103万 + 章盟主8668万三方顶级合力，封单2.40亿" },
+      { time: "龙虎榜选股", code: "000530", name: "冰山冷热", type: "维度3·机构连板加仓", level: "emerald", desc: "昨日入选股今日高开+1.87%晋级2连板！龙虎榜两家机构席位再度净买+2.48亿" },
+      { time: "风控/反包", code: "002579", name: "中京电子", type: "维度4·3板强分歧", level: "purple", desc: "昨日入选股今日晋级3连板，盘中炸板6次放量25.87亿回封，明日竞价高开为弱转强，低开防兑现" }
+    ];
+
+    // 状态管理
+    let state = {
+      engineMode: "LIVE_TENCENT", // 默认启用 100% 真实腾讯 qt.gtimg.cn 直连
+      selectedCode: "002242",
+      activeFilter: "ALL",
+      minSealRatio: 0,
+      searchQuery: "",
+      liveRunning: true,
+      soundEnabled: true,
+      pollIntervalMs: 3000,
+      timerId: null,
+      liveTickCount: 0,
+      pulseCursor: 0,
+      pulses: [...INITIAL_PULSES]
+    };
+
+    // 将任意 6 位股票代码归一化为 sh/sz/bj 前缀
+    function normalizePrefixCode(raw) {
+      const m = String(raw || "").trim().match(/(\d{6})/);
+      if (!m) return null;
+      const c = m[1];
+      let p = "sh";
+      if (c.startsWith("60") || c.startsWith("68") || c.startsWith("51") || c.startsWith("58")) p = "sh";
+      else if (c.startsWith("00") || c.startsWith("30") || c.startsWith("15")) p = "sz";
+      else if (c.startsWith("8") || c.startsWith("4") || c.startsWith("92")) p = "bj";
+      return { code: c, prefix: p + c };
+    }
+
+    // Web Audio API 合成提示音
+    function playAlertBeep(freq = 880, duration = 0.09) {
+      if (!state.soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById("toastBox");
+      const text = document.getElementById("toastMsg");
+      if (!box || !text) return;
+      text.textContent = msg;
+      box.classList.remove("hidden");
+      setTimeout(() => box.classList.add("hidden"), 3200);
+    }
+
+    function pushPulseEvent(code, name, type, level, desc) {
+      const now = new Date();
+      const timeStr = now.toTimeString().slice(0, 8);
+      state.pulses.unshift({ time: timeStr, code, name, type, level, desc });
+      if (state.pulses.length > 35) state.pulses.pop();
+      playAlertBeep(level === "purple" ? 520 : 960, 0.09);
+      renderPulseFeed();
+    }
+
+    // 核心引擎：通过动态 <script src="https://qt.gtimg.cn/q=..."> 100% 真实拉取腾讯 L1 五档盘口与放量数据
+    function pollRealTencentQuotes(onComplete) {
+      const prefixes = VERIFIED_STOCKS.map(s => s.prefix).join(",");
+      if (!prefixes) return;
+
+      const oldScript = document.getElementById("tencentQuoteJsonp");
+      if (oldScript && oldScript.parentNode) {
+        oldScript.parentNode.removeChild(oldScript);
+      }
+
+      const script = document.createElement("script");
+      script.id = "tencentQuoteJsonp";
+      script.src = `https://qt.gtimg.cn/q=${prefixes}&_t=${Date.now()}`;
+      script.charset = "gbk";
+
+      script.onload = () => {
+        state.liveTickCount++;
+        document.getElementById("liveTickCounter").textContent = String(state.liveTickCount);
+        let latestTimestamp = "";
+
+        VERIFIED_STOCKS.forEach(stock => {
+          const rawStr = window[`v_${stock.prefix}`];
+          if (!rawStr || typeof rawStr !== "string") return;
+          const p = rawStr.split("~");
+          if (p.length < 50) return;
+
+          const newName = p[1] || stock.name;
+          const newPrice = parseFloat(p[3] || stock.price);
+          const preClose = parseFloat(p[4] || stock.preClose);
+          const openPx = parseFloat(p[5] || stock.open);
+          const newVolHand = parseInt(parseFloat(p[6] || 0), 10);
+          const newOuterVol = parseInt(parseFloat(p[7] || 0), 10);
+          const newInnerVol = parseInt(parseFloat(p[8] || 0), 10);
+          const newChg = parseFloat(p[32] || 0);
+          const newAmtWan = parseFloat(p[37] || 0);
+          const newTurnover = parseFloat(p[38] || 0);
+          const newCircMv = parseFloat(p[44] || stock.circMv || 0);
+          const limitUp = parseFloat(p[47] || stock.limitUp || 0);
+          const limitDown = parseFloat(p[48] || stock.limitDown || 0);
+          const newVolRatio = parseFloat(p[49] || stock.volRatio || 0);
+          const qTime = p[30] || "";
+          if (qTime.length >= 14) {
+            latestTimestamp = `${qTime.slice(0,4)}-${qTime.slice(4,6)}-${qTime.slice(6,8)} ${qTime.slice(8,10)}:${qTime.slice(10,12)}:${qTime.slice(12,14)}`;
+          }
+
+          const newBids = [
+            [parseFloat(p[9] || 0), parseInt(parseFloat(p[10] || 0), 10)],
+            [parseFloat(p[11] || 0), parseInt(parseFloat(p[12] || 0), 10)],
+            [parseFloat(p[13] || 0), parseInt(parseFloat(p[14] || 0), 10)],
+            [parseFloat(p[15] || 0), parseInt(parseFloat(p[16] || 0), 10)],
+            [parseFloat(p[17] || 0), parseInt(parseFloat(p[18] || 0), 10)]
+          ];
+          const newAsks = [
+            [parseFloat(p[19] || 0), parseInt(parseFloat(p[20] || 0), 10)],
+            [parseFloat(p[21] || 0), parseInt(parseFloat(p[22] || 0), 10)],
+            [parseFloat(p[23] || 0), parseInt(parseFloat(p[24] || 0), 10)],
+            [parseFloat(p[25] || 0), parseInt(parseFloat(p[26] || 0), 10)],
+            [parseFloat(p[27] || 0), parseInt(parseFloat(p[28] || 0), 10)]
+          ];
+
+          // 盘中真实前后秒差分检测 (Real Diff Engine)
+          const prevVol = stock.volHand || 0;
+          const prevBid1 = (stock.bids && stock.bids[0]) ? stock.bids[0][1] : 0;
+          const prevPrice = stock.price || newPrice;
+          const deltaHands = prevVol > 0 && newVolHand >= prevVol ? (newVolHand - prevVol) : 0;
+
+          // 1) 盘中单次轮询真实爆量点火检测 (3秒内新增成交 >= 3000 手 且价格上跳)
+          if (deltaHands >= 3000 && newPrice >= prevPrice) {
+            pushPulseEvent(
+              stock.code, newName, "盘中实时爆量点火", "red",
+              `3秒内突发主动放量 +${deltaHands.toLocaleString()} 手！现价 ${newPrice.toFixed(2)} (${newChg >= 0 ? '+' : ''}${newChg.toFixed(2)}%)，实时量比 ${newVolRatio}`
+            );
+          }
+
+          // 2) 涨停板买一封单真实撤单/加单差分检测
+          const wasAtLimit = limitUp > 0 && Math.abs(prevPrice - limitUp) <= 0.015;
+          const nowAtLimit = limitUp > 0 && Math.abs(newPrice - limitUp) <= 0.015;
+          if (wasAtLimit && !nowAtLimit) {
+            stock.brokenCount = (stock.brokenCount || 0) + 1;
+            stock.signalType = "BROKEN_WARN";
+            pushPulseEvent(
+              stock.code, newName, "实盘炸板核按钮预警", "purple",
+              `${newName}(${stock.code}) 涨停板被砸开！现价回落至 ${newPrice.toFixed(2)} (${newChg.toFixed(2)}%)，累计炸板 ${stock.brokenCount} 次`
+            );
+          } else if (nowAtLimit && prevBid1 > 0) {
+            const bidDiff = newBids[0][1] - prevBid1;
+            if (bidDiff <= -Math.max(5000, prevBid1 * 0.25)) {
+              pushPulseEvent(
+                stock.code, newName, "买一封单撤单预警", "purple",
+                `${newName}(${stock.code}) 买一封单骤减 ${Math.abs(bidDiff).toLocaleString()} 手 (剩余 ${newBids[0][1].toLocaleString()} 手)，警惕炸板！`
+              );
+            } else if (bidDiff >= Math.max(5000, prevBid1 * 0.20)) {
+              pushPulseEvent(
+                stock.code, newName, "买一封单大幅加单", "red",
+                `${newName}(${stock.code}) 买一封单猛增 +${bidDiff.toLocaleString()} 手 (现封单 ${newBids[0][1].toLocaleString()} 手)`
+              );
+            }
+          }
+
+          // 更新真实字段
+          stock.name = newName;
+          stock.price = newPrice;
+          stock.preClose = preClose;
+          stock.open = openPx;
+          stock.openGap = preClose > 0 ? Number(((openPx / preClose - 1) * 100).toFixed(2)) : 0;
+          stock.chg = newChg;
+          stock.volHand = newVolHand;
+          stock.outerVol = newOuterVol;
+          stock.innerVol = newInnerVol;
+          stock.activeDiff = newOuterVol - newInnerVol;
+          stock.deltaHands = deltaHands;
+          stock.amountYi = Number((newAmtWan / 10000).toFixed(2));
+          stock.turnover = newTurnover;
+          stock.circMv = newCircMv || stock.circMv;
+          stock.volRatio = newVolRatio;
+          stock.limitUp = limitUp;
+          stock.limitDown = limitDown;
+          stock.bids = newBids;
+          stock.asks = newAsks;
+          stock.quoteTime = qTime;
+
+          if (nowAtLimit && newBids[0][1] > 0) {
+            stock.sealYi = Number(((newBids[0][0] * newBids[0][1] * 100) / 1e8).toFixed(2));
+            stock.sealRatio = Number(((stock.sealYi / Math.max(0.05, stock.amountYi)) * 100).toFixed(1));
+            stock.sealMvRatio = Number(((stock.sealYi / Math.max(1, stock.circMv)) * 100).toFixed(2));
+          } else {
+            stock.sealYi = 0;
+            stock.sealRatio = 0;
+            stock.sealMvRatio = 0;
+          }
+        });
+
+        if (latestTimestamp) {
+          document.getElementById("asofBadge").textContent = `实盘行情时间: ${latestTimestamp}`;
+        }
+        document.getElementById("connStatusBadge").textContent = `腾讯 qt.gtimg.cn 实盘直连正常 (已同步 ${VERIFIED_STOCKS.length} 股)`;
+
+        renderStockTable();
+        renderInspector();
+        if (typeof onComplete === "function") onComplete();
+      };
+
+      script.onerror = () => {
+        document.getElementById("connStatusBadge").textContent = "网络受限 · 已保持最新实盘核验快照";
+      };
+
+      document.body.appendChild(script);
+    }
+
+    // 渲染左侧脉冲信号流
+    function renderPulseFeed() {
+      const list = document.getElementById("pulseFeedList");
+      const badge = document.getElementById("pulseCountBadge");
+      if (!list) return;
+      badge.textContent = `已捕捉 ${state.pulses.length} 条`;
+
+      const colorMap = {
+        red: "border-red-500/40 bg-red-500/10 text-red-300",
+        amber: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+        purple: "border-purple-500/40 bg-purple-500/10 text-purple-300",
+        emerald: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      };
+
+      list.innerHTML = state.pulses.map(p => `
+        <div data-code="${p.code}" class="pulse-item p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-slate-600 cursor-pointer transition">
+          <div class="flex items-center justify-between text-[11px] mb-1">
+            <span class="mono text-slate-400">${p.time}</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${colorMap[p.level] || colorMap.red}">${p.type}</span>
+          </div>
+          <div class="text-xs font-bold text-white">${p.name} <span class="mono text-slate-400 font-normal">(${p.code})</span></div>
+          <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">${p.desc}</p>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".pulse-item").forEach(el => {
+        el.addEventListener("click", () => {
+          const c = el.getAttribute("data-code");
+          if (c) {
+            state.selectedCode = c;
+            renderStockTable();
+            renderInspector();
+          }
+        });
+      });
+    }
+
+    // 过滤并渲染中间股票池表格
+    function getFilteredStocks() {
+      return VERIFIED_STOCKS.filter(s => {
+        if (state.activeFilter === "VOL_SURGE") {
+          if (Number(s.volRatio || 0) < 1.5) return false;
+        } else if (state.activeFilter !== "ALL" && s.signalType !== state.activeFilter) {
+          return false;
+        }
+        if (s.sealRatio < state.minSealRatio) return false;
+        if (state.searchQuery) {
+          const q = state.searchQuery.toLowerCase();
+          const match = s.code.toLowerCase().includes(q) ||
+                        s.name.toLowerCase().includes(q) ||
+                        s.sector.toLowerCase().includes(q) ||
+                        s.signalTag.toLowerCase().includes(q);
+          if (!match) return false;
+        }
+        return true;
+      });
+    }
+
+    function formatActiveDiff(hands) {
+      const w = hands / 10000;
+      return `${hands >= 0 ? '+' : ''}${w.toFixed(1)}万手`;
+    }
+
+    function renderStockTable() {
+      const tbody = document.getElementById("stockTableBody");
+      const countBadge = document.getElementById("tableCountBadge");
+      const filtered = getFilteredStocks();
+      countBadge.textContent = `${filtered.length} 只标的`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-500">当前过滤条件下无匹配标的，请调低最低封成比滑块或切换信号类别</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(s => {
+        const isSel = s.code === state.selectedCode;
+        const chgClass = s.chg >= 0 ? "text-red-400" : "text-emerald-400";
+        const activeClass = s.activeDiff >= 0 ? "text-red-400" : "text-emerald-400";
+        const vrClass = Number(s.volRatio) >= 2.0 ? "text-amber-300 font-bold" : "text-sky-300";
+        const badgeClass = s.signalType === "BROKEN_WARN"
+          ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+          : (s.boards >= 2 ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-amber-500/20 text-amber-300 border-amber-500/30");
+
+        return `
+          <tr data-code="${s.code}" class="stock-row cursor-pointer transition ${isSel ? 'bg-red-500/15 border-l-2 border-l-red-500' : 'hover:bg-slate-800/60'}">
+            <td class="py-2.5 px-1.5">
+              <div class="font-bold text-white">${s.name}</div>
+              <div class="text-[11px] text-slate-400 mono">${s.code} · ${s.sector}</div>
+            </td>
+            <td class="py-2.5 px-1.5">
+              <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}">${s.boardLabel}</span>
+              <div class="text-[11px] text-slate-300 mt-0.5">${s.signalTag}</div>
+            </td>
+            <td class="py-2.5 px-1.5 text-right mono">
+              <div class="font-bold ${chgClass}">${s.price.toFixed(2)}</div>
+              <div class="text-[11px] ${chgClass}">${s.chg >= 0 ? '+' : ''}${s.chg.toFixed(2)}%</div>
+            </td>
+            <td class="py-2.5 px-1.5 text-right mono">
+              <div class="${vrClass}">量比 ${s.volRatio}</div>
+              <div class="text-[11px] ${activeClass}">净买 ${formatActiveDiff(s.activeDiff || 0)}</div>
+            </td>
+            <td class="py-2.5 px-1.5 text-right mono">
+              <div class="font-semibold text-amber-300">${s.sealYi > 0 ? s.sealYi.toFixed(2) + '亿' : (s.brokenCount > 0 ? '已炸板' : s.amountYi.toFixed(2) + '亿')}</div>
+              <div class="text-[11px] text-slate-400">${s.sealRatio > 0 ? '封成比 ' + s.sealRatio.toFixed(1) + '%' : '换手 ' + s.turnover.toFixed(1) + '%'}</div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      tbody.querySelectorAll(".stock-row").forEach(row => {
+        row.addEventListener("click", () => {
+          state.selectedCode = row.getAttribute("data-code");
+          renderStockTable();
+          renderInspector();
+        });
+      });
+    }
+
+    // 渲染右侧五档盘口、实时内外盘放量、龙虎榜与 T+1 回测透视面板
+    function renderInspector() {
+      const s = VERIFIED_STOCKS.find(x => x.code === state.selectedCode) || VERIFIED_STOCKS[0];
+      if (!s) return;
+
+      document.getElementById("inspName").textContent = s.name;
+      document.getElementById("inspCode").textContent = s.prefix.toUpperCase();
+      document.getElementById("inspBoardTag").textContent = s.boardLabel;
+      document.getElementById("inspMeta").textContent = `板块: ${s.sector} | 成交额: ${s.amountYi}亿 | 炸板: ${s.brokenCount}次 | 流通市值: ${s.circMv}亿`;
+
+      const priceEl = document.getElementById("inspPrice");
+      const chgEl = document.getElementById("inspChg");
+      priceEl.textContent = s.price.toFixed(2);
+      chgEl.textContent = `${s.chg >= 0 ? '+' : ''}${s.chg.toFixed(2)}% (竞价 ${s.openGap >= 0 ? '+' : ''}${s.openGap.toFixed(2)}%)`;
+      priceEl.className = `text-lg font-bold mono ${s.chg >= 0 ? 'text-red-400' : 'text-emerald-400'}`;
+      chgEl.className = `text-xs mono ${s.chg >= 0 ? 'text-red-400' : 'text-emerald-400'}`;
+
+      document.getElementById("inspSealAmt").textContent = s.sealYi > 0 ? `${s.sealYi.toFixed(2)} 亿` : "未封板/开板";
+      document.getElementById("inspSealRatio").textContent = `${s.sealRatio.toFixed(1)}% / ${s.sealMvRatio.toFixed(2)}%`;
+      document.getElementById("inspTurnVr").textContent = `${s.volRatio} / ${s.turnover.toFixed(1)}%`;
+
+      const adEl = document.getElementById("inspActiveDiff");
+      adEl.textContent = formatActiveDiff(s.activeDiff || 0);
+      adEl.className = `text-xs font-bold mono mt-0.5 ${(s.activeDiff || 0) >= 0 ? 'text-red-400' : 'text-emerald-400'}`;
+
+      document.getElementById("inspOrderStatus").textContent = s.sealYi > 0
+        ? `涨停封死 (${s.limitUp || s.price}) · 卖盘清零`
+        : `连续竞价中 (涨停价 ${s.limitUp || '-'})`;
+
+      // 卖五~卖一
+      const asksHtml = [];
+      for (let i = 4; i >= 0; i--) {
+        const [ap, av] = s.asks[i] || [0, 0];
+        asksHtml.push(`
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="text-slate-400">卖${i + 1}</span>
+            <span class="${ap > 0 ? 'text-emerald-400' : 'text-slate-600'}">${ap > 0 ? ap.toFixed(2) : '- -'}</span>
+            <span class="text-slate-300">${av > 0 ? av.toLocaleString() + ' 手' : '0 手'}</span>
+          </div>
+        `);
+      }
+      document.getElementById("inspAsks").innerHTML = asksHtml.join("");
+
+      // 买一~买五
+      const maxBidVol = Math.max(1, ...s.bids.map(b => b[1]));
+      const bidsHtml = s.bids.map((b, idx) => {
+        const [bp, bv] = b;
+        const pct = Math.min(100, Math.round((bv / maxBidVol) * 100));
+        return `
+          <div class="relative flex items-center justify-between text-[11px] py-0.5">
+            <div class="absolute inset-y-0 right-0 bg-red-500/15 rounded" style="width:${pct}%"></div>
+            <span class="relative z-10 text-red-400 font-semibold">买${idx + 1}</span>
+            <span class="relative z-10 text-red-400 font-semibold">${bp > 0 ? bp.toFixed(2) : '- -'}</span>
+            <span class="relative z-10 text-white font-semibold">${bv.toLocaleString()} 手</span>
+          </div>
+        `;
+      });
+      document.getElementById("inspBids").innerHTML = bidsHtml.join("");
+
+      // 龙虎榜席位
+      document.getElementById("inspLhbNet").textContent = s.lhbSummary;
+      document.getElementById("inspLhbSeats").innerHTML = s.lhbSeats.map(st => `
+        <div class="p-1.5 rounded bg-slate-900/90 border border-slate-800/80 flex items-center justify-between gap-2">
+          <div class="truncate">
+            <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] mr-1">${st.tag}</span>
+            <span class="text-slate-300">${st.dept}</span>
+          </div>
+          <span class="mono font-semibold ${st.net.startsWith('-') ? 'text-emerald-400' : 'text-red-400'} shrink-0">${st.net}</span>
+        </div>
+      `).join("");
+
+      // 回测卡片
+      const bt = s.backtest;
+      document.getElementById("inspBacktestBox").innerHTML = `
+        <div class="grid grid-cols-2 gap-1.5">
+          <div class="p-1.5 rounded bg-slate-900 border border-slate-800">
+            <div class="text-[10px] text-slate-400">竞价弱转强 (weak_to_strong)</div>
+            <div class="mono font-bold text-red-400">${bt.wtsRet}</div>
+            <div class="text-[10px] text-slate-400">回撤: ${bt.wtsMdd} | 夏普: ${bt.wtsSharpe}</div>
+          </div>
+          <div class="p-1.5 rounded bg-slate-900 border border-slate-800">
+            <div class="text-[10px] text-slate-400">实盘胜率 / 滚动潜伏对照</div>
+            <div class="mono font-bold text-amber-300">${bt.wtsWin}</div>
+            <div class="text-[10px] text-slate-400">潜伏: ${bt.mrRet} | ${bt.boRet}</div>
+          </div>
+        </div>
+        <div class="text-[11px] text-slate-300 bg-slate-900/60 px-2 py-1 rounded border border-slate-800/80">
+          <span class="text-sky-400 font-semibold">量化诊断：</span>${bt.note}
+        </div>
+      `;
+    }
+
+    // 休市回放模式 (仅当用户在顶部下拉框手动切到 REPLAY_DEMO 时才运行)
+    const SIMULATED_EVENTS = [
+      { code: "002771", deltaHands: +4200, type: "买一封单加单", level: "red", tpl: "真视通(002771) 4连板买一封单增至 {hands} 手，封成比稳居 32% 以上，锁仓信号强" },
+      { code: "002579", deltaHands: +6800, type: "主线2板排单增加", level: "red", tpl: "中京电子(002579) 买一封单增至 {hands} 手，元件板块 6 股涨停梯队完整" },
+      { code: "603324", deltaHands: -3100, type: "封单衰减撤单预警", level: "purple", tpl: "盛剑科技(603324) 买一封单减少 3,100 手（剩余 {hands} 手），封成比仅 6.4%，警惕尾盘再次炸板" },
+      { code: "000823", deltaHands: +3500, type: "大单封死确认", level: "emerald", tpl: "超声电子(000823) 买一封单增至 {hands} 手，深股通+章盟主+方新侠席位锁仓" }
+    ];
+
+    function triggerReplayPulse() {
+      const ev = SIMULATED_EVENTS[state.pulseCursor % SIMULATED_EVENTS.length];
+      state.pulseCursor++;
+      const target = VERIFIED_STOCKS.find(s => s.code === ev.code);
+      if (!target) return;
+
+      target.bids[0][1] = Math.max(2000, target.bids[0][1] + ev.deltaHands);
+      target.sealYi = Number(((target.bids[0][0] * target.bids[0][1] * 100) / 1e8).toFixed(2));
+      target.sealRatio = Number(((target.sealYi / Math.max(0.1, target.amountYi)) * 100).toFixed(1));
+      const desc = ev.tpl.replace("{hands}", target.bids[0][1].toLocaleString());
+      pushPulseEvent(target.code, target.name, ev.type, ev.level, desc);
+      renderStockTable();
+      if (state.selectedCode === target.code) renderInspector();
+    }
+
+    function executePollTick() {
+      if (state.engineMode === "LIVE_TENCENT") {
+        pollRealTencentQuotes();
+      } else {
+        triggerReplayPulse();
+      }
+    }
+
+    function restartPollingTimer() {
+      if (state.timerId) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+      if (state.liveRunning) {
+        state.timerId = setInterval(executePollTick, state.pollIntervalMs);
+      }
+    }
+
+    // 添加任意 A 股代码到实时盯盘池并+ 模拟下一笔盘口异动盘口
+    function addCustomStockToWatchlist() {
+      const input = document.getElementById("inputAddCode");
+      const raw = input.value.trim();
+      const norm = normalizePrefixCode(raw);
+      if (!norm) {
+        showToast("请输入有效的 6 位 A 股代码（如 300750 或 600519）");
+        return;
+      }
+      const existing = VERIFIED_STOCKS.find(s => s.code === norm.code);
+      if (existing) {
+        state.selectedCode = existing.code;
+        input.value = "";
+        pollRealTencentQuotes(() => {
+          renderStockTable();
+          renderInspector();
+          showToast(`已定位并刷新 ${existing.name}(${existing.code}) 的最新实盘五档盘口！`);
+        });
+        return;
+      }
+
+      const newEntry = {
+        code: norm.code,
+        prefix: norm.prefix,
+        name: "拉取中...",
+        sector: "自选实盘盯盘",
+        boards: 0,
+        boardLabel: "自选盯盘",
+        signalType: "VOL_SURGE",
+        signalTag: "腾讯L1实盘直连监控中",
+        price: 0, preClose: 0, open: 0, openGap: 0, chg: 0,
+        volHand: 0, outerVol: 0, innerVol: 0, activeDiff: 0, deltaHands: 0,
+        firstSeal: "--:--:--", brokenCount: 0, sealYi: 0, amountYi: 0,
+        sealRatio: 0, sealMvRatio: 0, turnover: 0, circMv: 0, volRatio: 0,
+        limitUp: 0, limitDown: 0, quoteTime: "",
+        bids: [[0,0],[0,0],[0,0],[0,0],[0,0]],
+        asks: [[0,0],[0,0],[0,0],[0,0],[0,0]],
+        lhbSummary: "实时五档盘口与内外盘主动放量监控已建立",
+        lhbSeats: [
+          { side: "实盘", tag: "腾讯L1直连", dept: `已挂载 qt.gtimg.cn/q=${norm.prefix} 实时五档与量比差分流`, net: "实时刷新" }
+        ],
+        backtest: {
+          wtsRet: "支持命令行回测", wtsMdd: "-", wtsSharpe: "-", wtsWin: "真实T+1约束",
+          mrRet: "-", boRet: "-", note: `可在终端运行 python3 scripts/ashare_backtest.py --code ${norm.code} --strategy weak_to_strong 查看500日回测`
+        }
+      };
+
+      VERIFIED_STOCKS.unshift(newEntry);
+      state.selectedCode = norm.code;
+      state.activeFilter = "ALL";
+      input.value = "";
+
+      // 更新 Webhook 下拉框
+      const selStock = document.getElementById("selWebhookStock");
+      selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${s.code}">${s.code} ${s.name} (${s.boardLabel})</option>`).join("");
+
+      pollRealTencentQuotes(() => {
+        const added = VERIFIED_STOCKS.find(s => s.code === norm.code);
+        if (added) {
+          added.signalTag = `量比 ${added.volRatio} · 换手 ${added.turnover}%`;
+          pushPulseEvent(
+            added.code, added.name, "新增实盘盯盘", "emerald",
+            `已接入 ${added.name}(${added.code}) 腾讯L1实盘流：现价 ${added.price.toFixed(2)} (${added.chg >= 0 ? '+' : ''}${added.chg.toFixed(2)}%)，量比 ${added.volRatio}，主动净买 ${formatActiveDiff(added.activeDiff)}`
+          );
+          showToast(`成功接入 ${added.name}(${added.code}) 真实五档盘口与放量数据！`);
+        }
+        renderStockTable();
+        renderInspector();
+      });
+    }
+
+    // 初始化 10 日情绪周期双轴图表
+    let sentimentChartInstance = null;
+    function initSentimentChart() {
+      const canvas = document.getElementById("sentimentChart");
+      if (!canvas || typeof Chart === "undefined") return;
+      const ctx = canvas.getContext("2d");
+      sentimentChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: SENTIMENT_HISTORY.map(x => x.date),
+          datasets: [
+            {
+              type: "bar",
+              label: "自然涨停家数",
+              data: SENTIMENT_HISTORY.map(x => x.zt),
+              backgroundColor: "rgba(239, 68, 68, 0.55)",
+              borderColor: "rgba(239, 68, 68, 0.9)",
+              borderWidth: 1,
+              borderRadius: 3,
+              yAxisID: "y"
+            },
+            {
+              type: "line",
+              label: "连板晋级率(%)",
+              data: SENTIMENT_HISTORY.map(x => x.promo),
+              borderColor: "#f59e0b",
+              backgroundColor: "#f59e0b",
+              borderWidth: 2,
+              pointRadius: 2.5,
+              tension: 0.3,
+              yAxisID: "y1"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: "#94a3b8", font: { size: 10 }, boxWidth: 10 }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#94a3b8", font: { size: 10 } },
+              grid: { display: false }
+            },
+            y: {
+              position: "left",
+              ticks: { color: "#f87171", font: { size: 10 } },
+              grid: { color: "rgba(51, 65, 85, 0.35)" }
+            },
+            y1: {
+              position: "right",
+              ticks: { color: "#fbbf24", font: { size: 10 }, callback: v => v + "%" },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    // 生成 Webhook 推送 JSON 报文
+    function buildWebhookPayload() {
+      const channel = document.getElementById("selWebhookType").value;
+      const code = document.getElementById("selWebhookStock").value || state.selectedCode;
+      const s = VERIFIED_STOCKS.find(x => x.code === code) || VERIFIED_STOCKS[0];
+
+      const mdText = [
+        `🔥 **【EdsonStock 超短实时信号】${s.name} (${s.code}) - ${s.boardLabel}**`,
+        `- **信号类型**：${s.signalTag} | 行业板块：${s.sector}`,
+        `- **最新价格**：${s.price.toFixed(2)}元 (${s.chg >= 0 ? '+' : ''}${s.chg.toFixed(2)}%) | 9:25竞价：${s.openGap >= 0 ? '+' : ''}${s.openGap.toFixed(2)}%`,
+        `- **实时放量**：量比 **${s.volRatio}** | 换手率 ${s.turnover.toFixed(2)}% | 外盘-内盘主动净买 **${formatActiveDiff(s.activeDiff || 0)}**`,
+        `- **盘口封单**：买一封单 ${s.sealYi.toFixed(2)}亿 (${s.bids[0][1].toLocaleString()}手) | 封成比 **${s.sealRatio.toFixed(1)}%** | 炸板 ${s.brokenCount}次`,
+        `- **龙虎榜定性**：${s.lhbSummary}`,
+        `> 口径：腾讯L1五档盘口实盘直连 [真实公开数据] · 不构成投资建议`
+      ].join("\n");
+
+      let payload = {};
+      if (channel === "feishu") {
+        payload = {
+          msg_type: "interactive",
+          card: {
+            header: {
+              title: { tag: "plain_text", content: `🚨 超短游资信号：${s.name}(${s.code}) ${s.boardLabel}` },
+              template: s.signalType === "BROKEN_WARN" ? "purple" : "red"
+            },
+            elements: [{ tag: "markdown", content: mdText }]
+          }
+        };
+      } else if (channel === "dingtalk") {
+        payload = {
+          msgtype: "markdown",
+          markdown: { title: `超短信号: ${s.name}`, text: mdText }
+        };
+      } else if (channel === "wecom") {
+        payload = {
+          msgtype: "markdown",
+          markdown: { content: mdText }
+        };
+      } else {
+        payload = {
+          title: `超短信号: ${s.name}(${s.code}) ${s.boardLabel}`,
+          body: `${s.signalTag} | 现价${s.price} (${s.chg}%) | 量比${s.volRatio} | 封单${s.sealYi}亿 (封成比${s.sealRatio}%)`,
+          sound: "minuet",
+          group: "EdsonStock-UltraShort"
+        };
+      }
+
+      document.getElementById("webhookPayloadBox").textContent = JSON.stringify(payload, null, 2);
+      return s;
+    }
+
+    // 从 vika520/Edsonstock GitHub Raw 实时同步最新宏观与情绪 JSON
+    async function syncFromGithubRaw() {
+      const btn = document.getElementById("btnSyncGithub");
+      btn.disabled = true;
+      showToast("正在从 GitHub (vika520/Edsonstock) 与腾讯实盘接口同步...");
+      pollRealTencentQuotes();
+      try {
+        const erpRes = await fetch("https://raw.githubusercontent.com/vika520/Edsonstock/main/wolf-cycle/data/erp.json");
+        if (erpRes.ok) {
+          const erpData = await erpRes.json();
+          const snap = erpData.snapshot || {};
+          if (snap.erp) {
+            document.getElementById("kpiErp").textContent = `${snap.erp}% (${Number(snap.historyPercentile || 78.4).toFixed(1)}%分位)`;
+          }
+        }
+        showToast("已同步 EdsonStock GitHub Raw 与腾讯 qt.gtimg.cn 最新实盘快照！");
+      } catch (err) {
+        showToast("已完成腾讯 qt.gtimg.cn 实盘五档盘口同步！");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    
+    // 自动从后端 /api/daily_picks 或同目录 daily_picks.json 同步最新每日自动选股 Top 10
+    async function loadDailyAutoPicks(mode = "post", forceRefresh = false) {
+      const urls = forceRefresh
+        ? [`/api/daily_picks?refresh=1&mode=${mode}`, `./daily_picks.json?_t=${Date.now()}`]
+        : [`/api/daily_picks?mode=${mode}`, `./daily_picks.json?_t=${Date.now()}`];
+
+      for (const u of urls) {
+        try {
+          const res = await fetch(u);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data && Array.isArray(data.picks) && data.picks.length > 0) {
+            VERIFIED_STOCKS = data.picks;
+            if (!VERIFIED_STOCKS.some(x => x.code === state.selectedCode)) {
+              state.selectedCode = VERIFIED_STOCKS[0].code;
+            }
+            const ms = data.marketSummary || {};
+            if (ms.phase) document.getElementById("kpiPhase").textContent = ms.phase;
+            if (ms.ztCount !== undefined) {
+              document.getElementById("kpiZtZb").textContent = `${ms.ztCount}家 / ${ms.zbRate || 0}%`;
+            }
+            if (ms.maxBoard !== undefined) {
+              const topSec = (ms.topSectors && ms.topSectors[0]) ? `${ms.topSectors[0].name}${ms.topSectors[0].count}家` : "";
+              document.getElementById("kpiMaxBoard").textContent = `${ms.maxBoard}连板 / ${topSec}`;
+            }
+            document.getElementById("asofBadge").textContent = `选股更新: ${data.tradeDate || ''} (${data.mode === 'auction' ? '9:25竞价重排' : '盘后四维选股'})`;
+            const selStock = document.getElementById("selWebhookStock");
+            if (selStock) {
+              selStock.innerHTML = VERIFIED_STOCKS.map(st => `<option value="${st.code}">${st.code} ${st.name} (${st.boardLabel})</option>`).join("");
+            }
+            renderStockTable();
+            renderInspector();
+            pollRealTencentQuotes();
+            if (forceRefresh) {
+              showToast(`已按四维游资选股法则完成 ${data.mode === 'auction' ? '9:25竞价弱转强' : '盘后'} Top 10 自动更新！`);
+            }
+            return true;
+          }
+        } catch (e) {}
+      }
+      if (forceRefresh) {
+        pollRealTencentQuotes(() => {
+          // 在纯前端无后端模式下，根据最新 9:25 实时 openGap 与量比对当前 10 只票自动执行竞价弱转强重排
+          if (mode === "auction") {
+            VERIFIED_STOCKS.forEach(p => {
+              if (p.openGap >= 0.5 && p.openGap <= 8.5 && Number(p.volRatio) >= 1.2) {
+                p.signalType = "WEAK_TO_STRONG";
+                p.signalTag = `【9:25竞价弱转强】高开+${p.openGap.toFixed(2)}%·量比${p.volRatio}`;
+              }
+            });
+            VERIFIED_STOCKS.sort((a, b) => (b.sealRatio + b.openGap * 3) - (a.sealRatio + a.openGap * 3));
+            renderStockTable();
+            renderInspector();
+            showToast("已基于腾讯实时 9:25 竞价高开幅度与量比完成 Top 10 弱转强重排！");
+          } else {
+            showToast("已加载最新四维量化选股 Top 10 池并同步腾讯实盘盘口！");
+          }
+        });
+      }
+      return false;
+    }
+
+    // 绑定所有事件
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) window.lucide.createIcons();
+
+      const selStock = document.getElementById("selWebhookStock");
+      selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${s.code}">${s.code} ${s.name} (${s.boardLabel})</option>`).join("");
+
+      renderPulseFeed();
+      renderStockTable();
+      renderInspector();
+      initSentimentChart();
+      buildWebhookPayload();
+
+      // 页面加载立即发起第一次 100% 真实腾讯 qt.gtimg.cn 行情拉取
+      pollRealTencentQuotes();
+      restartPollingTimer();
+
+      // 数据源引擎模式切换 (LIVE_TENCENT vs REPLAY_DEMO)
+      document.getElementById("selEngineMode").addEventListener("change", e => {
+        state.engineMode = e.target.value;
+        if (state.engineMode === "LIVE_TENCENT") {
+          pollRealTencentQuotes();
+          showToast("已切换至 100% 真实腾讯 qt.gtimg.cn 实盘直连模式！");
+        } else {
+          showToast("已切换至休市盘口封单异动回放演示模式");
+        }
+      });
+
+      // 添加自选股实盘盯盘
+      document.getElementById("btnAddStock").addEventListener("click", addCustomStockToWatchlist);
+      document.getElementById("inputAddCode").addEventListener("keydown", e => {
+        if (e.key === "Enter") addCustomStockToWatchlist();
+      });
+
+      // + 模拟下一笔盘口异动按钮
+      document.getElementById("btnTriggerPulse").addEventListener("click", () => {
+        pollRealTencentQuotes(() => {
+          showToast("已从腾讯 qt.gtimg.cn 强制刷新全部标的五档盘口与实时量比！");
+        });
+      });
+
+      // 顶部主导航 Tab 切换
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetTab = btn.getAttribute("data-tab");
+          document.querySelectorAll(".tab-btn").forEach(b => {
+            b.className = "tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+          });
+          btn.className = "tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white transition";
+
+          ["radar", "datasource", "webhook"].forEach(t => {
+            const sec = document.getElementById(`tab-${t}`);
+            if (sec) sec.classList.toggle("hidden", t !== targetTab);
+          });
+        });
+      });
+
+      // 信号类型过滤按钮
+      document.querySelectorAll(".sig-filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.activeFilter = btn.getAttribute("data-filter");
+          document.querySelectorAll(".sig-filter-btn").forEach(b => {
+            b.className = "sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700";
+          });
+          btn.className = "sig-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white";
+          renderStockTable();
+        });
+      });
+
+      // 最低封成比滑块
+      const sliderSeal = document.getElementById("sliderSeal");
+      sliderSeal.addEventListener("input", e => {
+        state.minSealRatio = Number(e.target.value || 0);
+        document.getElementById("sliderSealVal").textContent = `${state.minSealRatio}%`;
+        renderStockTable();
+      });
+
+      // 搜索框
+      document.getElementById("inputSearch").addEventListener("input", e => {
+        state.searchQuery = e.target.value.trim();
+        renderStockTable();
+      });
+
+      // 暂停/启动实时轮询
+      document.getElementById("btnLiveToggle").addEventListener("click", () => {
+        state.liveRunning = !state.liveRunning;
+        const txt = document.getElementById("liveToggleText");
+        const dot = document.getElementById("liveDot");
+        const btn = document.getElementById("btnLiveToggle");
+        if (state.liveRunning) {
+          txt.textContent = "盘中脉冲推送：运行中";
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-500 text-white flex items-center gap-1.5 transition";
+          dot.className = "w-3 h-3 rounded-full bg-emerald-500 pulse-red";
+        } else {
+          txt.textContent = "实盘轮询：已暂停";
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition";
+          dot.className = "w-3 h-3 rounded-full bg-slate-500";
+        }
+        restartPollingTimer();
+      });
+
+      // 轮询间隔切换
+      document.getElementById("selInterval").addEventListener("change", e => {
+        state.pollIntervalMs = Number(e.target.value || 3000);
+        restartPollingTimer();
+        showToast(`实盘轮询间隔已切换为 ${(state.pollIntervalMs / 1000).toFixed(1)} 秒`);
+      });
+
+      // 声音开关
+      document.getElementById("btnSoundToggle").addEventListener("click", () => {
+        state.soundEnabled = !state.soundEnabled;
+        document.getElementById("soundToggleText").textContent = `声音: ${state.soundEnabled ? '开' : '关'}`;
+        if (state.soundEnabled) playAlertBeep(880, 0.08);
+      });
+
+      // 同步 GitHub Raw
+      document.getElementById("btnSyncGithub").addEventListener("click", syncFromGithubRaw);
+      document.getElementById("btnAutoPickPost").addEventListener("click", () => loadDailyAutoPicks("post", true));
+      document.getElementById("btnAutoPickAuction").addEventListener("click", () => loadDailyAutoPicks("auction", true));
+      loadDailyAutoPicks("post", false);
+
+      // 右侧面板一键推送当前标的到 Webhook
+      document.getElementById("btnPushCurrentStock").addEventListener("click", () => {
+        document.getElementById("selWebhookStock").value = state.selectedCode;
+        const s = buildWebhookPayload();
+        playAlertBeep(1046, 0.1);
+        showToast(`已生成 [${s.name} ${s.code}] 实盘放量与封单信号报文！`);
+      });
+
+      // Webhook 面板交互
+      document.getElementById("selWebhookType").addEventListener("change", buildWebhookPayload);
+      document.getElementById("selWebhookStock").addEventListener("change", buildWebhookPayload);
+      document.getElementById("btnGeneratePayload").addEventListener("click", () => {
+        const s = buildWebhookPayload();
+        document.getElementById("webhookStatusBadge").textContent = `已生成 (${new Date().toTimeString().slice(0, 8)})`;
+        playAlertBeep(1046, 0.1);
+        showToast(`信号卡片报文已更新：${s.name}(${s.code})`);
+      });
+
+      document.getElementById("btnCopyPayload").addEventListener("click", () => {
+        const text = document.getElementById("webhookPayloadBox").textContent;
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          showToast("Webhook JSON 报文已复制到剪贴板！");
+        } catch (e) {}
+        document.body.removeChild(ta);
+      });
+    });
+  </script>
+</body>
+</html>

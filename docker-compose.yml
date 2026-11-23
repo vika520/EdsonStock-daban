@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  edsonstock-ultrashort:
+    build: .
+    container_name: edsonstock-ultrashort
+    restart: unless-stopped
+    ports:
+      - "8899:8899"
+    environment:
+      - TZ=Asia/Shanghai
+      - EDSONSTOCK_CACHE=/app/cache
+      # 可填入你的飞书/钉钉/企业微信/Bark Webhook URL，实现盘中自动推送
+      - EDSON_WEBHOOK_URL=${EDSON_WEBHOOK_URL:-}
+    volumes:
+      - ./cache:/app/cache
+      - ./web:/app/web
+      - ./scripts:/app/scripts
+      # 如 NAS 本地有 Edsonstock 主仓库的 wolf-cycle/data 目录，可取消下方注释挂载直读：
+      # - /volume1/docker/Edsonstock/wolf-cycle/data:/app/local_data:ro
