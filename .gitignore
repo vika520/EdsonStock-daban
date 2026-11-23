@@ -1,0 +1,16 @@
+# 本地私有配置
+.env
+ops/.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 运行时产物
+cache/
+*.log
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/

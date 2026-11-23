@@ -20,18 +20,21 @@
    - 强制执行 **T+1 交收**、主板/双创/北交/ST 差异化涨跌停阈值、**一字涨停排单失败拦截**、**一字跌停锁仓延迟卖出**、真实印花税佣金滑点扣除，以及滚动窗口无未来函数 + 区间首次进入去重的单侧 `p-value` 因果检验；
    - 内置 `weak_to_strong`（首板/试盘次日 9:25 竞价弱转强 1进2 接力）、`first_pullback`（涨停基因首次缩量回踩 5 日线）、`mean_revert`、`breakout`、`ma_cross` 五大策略。
 
-## 二、 飞牛 NAS (`192.168.5.115`) Docker 一键部署
+## 二、 飞牛 NAS Docker 一键部署
+
+部署脚本已移到 `ops/`，连接参数从 `ops/.env` 读取（该文件不会提交）：
 
 ```bash
-chmod +x deploy_to_nas.sh
-./deploy_to_nas.sh
+cp ops/.env.example ops/.env
+# 编辑 ops/.env，填写 NAS_HOST / NAS_USER / NAS_DIR / PORT
+bash ops/deploy_to_nas.sh
 ```
 
-部署完成后直接访问：
-- **超短实盘信号工作台**：`http://192.168.5.115:8899/`
-- **每日 Top 10 自动选股接口**：`http://192.168.5.115:8899/api/daily_picks`（手动重选：`?refresh=1&mode=post|auction`）
-- **腾讯五档与放量实时接口**：`http://192.168.5.115:8899/api/quotes?codes=603324,002771,002164`
-- **东财涨跌停/炸板实时三池**：`http://192.168.5.115:8899/api/zt_pool`
+部署完成后直接访问（`<NAS_HOST>` 为 `ops/.env` 中填写的地址）：
+- **超短实盘信号工作台**：`http://<NAS_HOST>:8899/`
+- **每日 Top 10 自动选股接口**：`http://<NAS_HOST>:8899/api/daily_picks`（手动重选：`?refresh=1&mode=post|auction`）
+- **腾讯五档与放量实时接口**：`http://<NAS_HOST>:8899/api/quotes?codes=603324,002771,002164`
+- **东财涨跌停/炸板实时三池**：`http://<NAS_HOST>:8899/api/zt_pool`
 
 ## 三、 免责声明
 
