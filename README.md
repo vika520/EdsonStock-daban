@@ -36,6 +36,15 @@ bash ops/deploy_to_nas.sh
 - **腾讯五档与放量实时接口**：`http://<NAS_HOST>:8899/api/quotes?codes=603324,002771,002164`
 - **东财涨跌停/炸板实时三池**：`http://<NAS_HOST>:8899/api/zt_pool`
 
-## 三、 免责声明
+## 三、 GitHub Actions 自动更新（Cloudflare Pages 静态站适用）
+
+`.github/workflows/daily-picks.yml` 会在交易日自动运行选股脚本并把结果写回 `web/daily_picks.json`：
+
+- 北京时间 **09:25**（竞价重排）、**15:05**（盘后初选）、**17:35**（龙虎榜终选）；
+- 也可在 GitHub 仓库 Actions 页面手动运行，选择 `post` 或 `auction` 模式；
+- 结果校验失败（例如网络异常导致涨停池为空）时保留原文件，不会用空数据覆盖；
+- 文件提交到 `main` 后会触发 Cloudflare Pages 自动重新部署。
+
+## 四、 免责声明
 
 所有数据为公开接口采集的统计信息，严格区分【真实公开数据】与【量价代理】，AI 风格模拟，不构成任何投资建议。
