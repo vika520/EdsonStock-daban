@@ -40,16 +40,20 @@ jobs:
       - name: 确定选股模式
         id: mode
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           INPUT_MODE: ${{ inputs.mode }}
         run: |
           if [ -n "$INPUT_MODE" ]; then
             MODE="$INPUT_MODE"
           else
-            case "$SCHEDULE" in
-              "25 1 "*) MODE="auction" ;;
-              *) MODE="post" ;;
-            esac
+            # 按实际运行时刻的北京时间动态判定，而非按 cron 触发字符串映射。
+            # GitHub 高峰期 scheduled run 可能延迟数小时，按触发源映射会把 auction 模式跑在盘后。
+            BJ_HM=$(date -u -d '+8 hours' +%H%M)
+            if [ "$BJ_HM" -ge 0915 ] && [ "$BJ_HM" -le 0940 ]; then
+              MODE="auction"
+            else
+              MODE="post"
+            fi
+            echo "运行时刻北京时间: $BJ_HM"
           fi
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "本次模式: $MODE"
