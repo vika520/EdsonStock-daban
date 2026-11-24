@@ -1,9 +1,32 @@
 {
   "ok": true,
-  "generatedAt": "2026-11-23 22:13:16",
+  "generatedAt": "2026-11-24 08:29:58",
+  "generatedAtTz": "Asia/Shanghai (UTC+8)",
+  "auctionNote": "",
   "tradeDate": 20261123,
   "lhbDate": "2026-11-23",
   "mode": "post",
+  "cycle": {
+    "phase": "高潮/主升加速期",
+    "cold": false,
+    "hot": true,
+    "dataReady": true,
+    "ztCount": 146,
+    "dtCount": 0,
+    "zbCount": 24,
+    "sentimentDate": "20261123",
+    "sentimentSource": "https://raw.githubusercontent.com/vika520/Edsonstock/main/wolf-cycle/data/extras.json",
+    "quotas": {
+      "high": 2,
+      "firstYin": 0,
+      "mainline": 5,
+      "lhb": 2,
+      "fill": 0,
+      "divergence": 1,
+      "broken": 0
+    },
+    "vetoedByLhb": []
+  },
   "marketSummary": {
     "phase": "高潮/主升加速期",
     "ztCount": 146,
@@ -35,112 +58,12 @@
     ]
   },
   "selectionRules": [
-    "席位1-2 [空间高标组]：全市场最高连板身位，按连板数+封成比+首封时间排序",
-    "席位3-5 [主线1进2/2进3卡位组]：涨停最多TOP3主线板块中，高封成比、早盘秒板、换手健康的晋级先锋",
-    "席位6-8 [龙虎榜游资/北向/机构合力组]：东财最新龙虎榜大额净买入且顶级游资/机构协同锁仓",
-    "席位9-10 [高分歧回封/炸板风控锚点组]：大成交分歧烂板或核心炸板股，用于次日9:25观察弱转强反包或亏钱效应预警"
+    "情绪周期：涨停<35或跌停>15时高标配额归零，改选首阴回踩5日线与1进2；主升期主线卡位扩至5席",
+    "评分：封成比+封流比(封单/流通市值)*8，黄金换手8%~28%加15分，缩量一字<3%与死亡换手>40%扣分",
+    "龙虎榜：买榜>=3拉萨散户且卖榜净卖出否决；量化做T扣30分；买一占比>15%独食板预警",
+    "9:25真弱转强：高开1.0%~7.5%且竞价量占昨量5%~18%（昨量为量价代理）才置顶"
   ],
   "picks": [
-    {
-      "code": "603324",
-      "prefix": "sh603324",
-      "name": "盛剑科技",
-      "sector": "环保设备",
-      "boards": 5,
-      "boardLabel": "5连板高标",
-      "signalType": "WEAK_TO_STRONG",
-      "signalTag": "首封13:03:03·封成比4.1%·炸0次",
-      "price": 30.48,
-      "preClose": 27.71,
-      "open": 27.44,
-      "openGap": -0.97,
-      "chg": 10.0,
-      "volHand": 287098,
-      "outerVol": 140178,
-      "innerVol": 146921,
-      "activeDiff": -6743,
-      "deltaHands": 0,
-      "firstSeal": "13:03:03",
-      "brokenCount": 0,
-      "sealYi": 0.33,
-      "amountYi": 8.08,
-      "sealRatio": 4.1,
-      "sealMvRatio": 0.74,
-      "turnover": 19.68,
-      "circMv": 44.46,
-      "volRatio": 3.4,
-      "limitUp": 30.48,
-      "limitDown": 24.94,
-      "quoteTime": "20261123161436",
-      "bids": [
-        [
-          30.48,
-          10686
-        ],
-        [
-          30.47,
-          2
-        ],
-        [
-          30.46,
-          4
-        ],
-        [
-          30.45,
-          5
-        ],
-        [
-          30.39,
-          258
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 113.3 分",
-      "lhbSeats": [
-        {
-          "side": "选股",
-          "tag": "5连板高标",
-          "dept": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级",
-          "net": "封单0.33亿"
-        },
-        {
-          "side": "共振",
-          "tag": "环保设备",
-          "dept": "所属板块当日涨停 1 家 · 首封 13:03:03",
-          "net": "封成比4.1%"
-        }
-      ],
-      "backtest": {
-        "wtsRet": "量化评分 113.3",
-        "wtsMdd": "首封 13:03:03",
-        "wtsSharpe": "5连板",
-        "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 0.33亿",
-        "boRet": "封成比 4.1%",
-        "note": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
-      }
-    },
     {
       "code": "002771",
       "prefix": "sz002771",
@@ -149,7 +72,7 @@
       "boards": 5,
       "boardLabel": "5连板高标",
       "signalType": "BROKEN_WARN",
-      "signalTag": "首封09:25:00·封成比2.5%·炸6次",
+      "signalTag": "首封09:25:00·封成比2.5%·封流比1.50%·炸6次 · 死亡换手",
       "price": 17.4,
       "preClose": 15.82,
       "open": 17.4,
@@ -165,9 +88,10 @@
       "sealYi": 0.47,
       "amountYi": 18.52,
       "sealRatio": 2.5,
+      "sealFlowRatio": 1.5,
       "sealMvRatio": 1.5,
-      "turnover": 60.41,
       "circMv": 31.42,
+      "turnover": 60.41,
       "volRatio": 7.14,
       "limitUp": 17.4,
       "limitDown": 14.24,
@@ -216,7 +140,7 @@
           0
         ]
       ],
-      "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 105.0 分",
+      "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 92.0 分",
       "lhbSeats": [
         {
           "side": "选股",
@@ -231,14 +155,249 @@
           "net": "封成比2.5%"
         }
       ],
+      "scoreParts": {
+        "board": 110.0,
+        "sealRatio": 2.0,
+        "sealFlow": 12.0,
+        "sector": 0.0,
+        "early": 0.0,
+        "lhb": 20.0,
+        "turnover": -25.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -27.0
+      },
       "backtest": {
-        "wtsRet": "量化评分 105.0",
+        "wtsRet": "量化评分 92.0",
         "wtsMdd": "首封 09:25:00",
         "wtsSharpe": "5连板",
         "wtsWin": "板块涨停 5 家",
         "mrRet": "封单 0.47亿",
-        "boRet": "封成比 2.5%",
+        "boRet": "封成比 2.5% / 封流比 1.50%",
         "note": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
+      }
+    },
+    {
+      "code": "603324",
+      "prefix": "sh603324",
+      "name": "盛剑科技",
+      "sector": "环保设备",
+      "boards": 5,
+      "boardLabel": "5连板高标",
+      "signalType": "WEAK_TO_STRONG",
+      "signalTag": "首封13:03:03·封成比4.1%·封流比0.74%·炸0次 · 黄金换手",
+      "price": 30.48,
+      "preClose": 27.71,
+      "open": 27.44,
+      "openGap": -0.97,
+      "chg": 10.0,
+      "volHand": 287098,
+      "outerVol": 140178,
+      "innerVol": 146921,
+      "activeDiff": -6743,
+      "deltaHands": 0,
+      "firstSeal": "13:03:03",
+      "brokenCount": 0,
+      "sealYi": 0.33,
+      "amountYi": 8.08,
+      "sealRatio": 4.1,
+      "sealFlowRatio": 0.74,
+      "sealMvRatio": 0.74,
+      "circMv": 44.46,
+      "turnover": 19.68,
+      "volRatio": 3.4,
+      "limitUp": 30.48,
+      "limitDown": 24.94,
+      "quoteTime": "20261123161436",
+      "bids": [
+        [
+          30.48,
+          10686
+        ],
+        [
+          30.47,
+          2
+        ],
+        [
+          30.46,
+          4
+        ],
+        [
+          30.45,
+          5
+        ],
+        [
+          30.39,
+          258
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 134.2 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "5连板高标",
+          "dept": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级",
+          "net": "封单0.33亿"
+        },
+        {
+          "side": "共振",
+          "tag": "环保设备",
+          "dept": "所属板块当日涨停 1 家 · 首封 13:03:03",
+          "net": "封成比4.1%"
+        }
+      ],
+      "scoreParts": {
+        "board": 110.0,
+        "sealRatio": 3.3,
+        "sealFlow": 5.9,
+        "sector": 0.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": 0.0
+      },
+      "backtest": {
+        "wtsRet": "量化评分 134.2",
+        "wtsMdd": "首封 13:03:03",
+        "wtsSharpe": "5连板",
+        "wtsWin": "板块涨停 1 家",
+        "mrRet": "封单 0.33亿",
+        "boRet": "封成比 4.1% / 封流比 0.74%",
+        "note": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
+      }
+    },
+    {
+      "code": "920690",
+      "prefix": "bj920690",
+      "name": "捷众科技",
+      "sector": "汽车零部",
+      "boards": 1,
+      "boardLabel": "1板·主线卡位",
+      "signalType": "HIGH_SEAL",
+      "signalTag": "汽车零部主线·首封13:20:05·封成比18.7%·封流比2.83% · 黄金换手",
+      "price": 22.67,
+      "preClose": 17.44,
+      "open": 17.0,
+      "openGap": -2.52,
+      "chg": 29.99,
+      "volHand": 95532,
+      "outerVol": 71589,
+      "innerVol": 23943,
+      "activeDiff": 47646,
+      "deltaHands": 0,
+      "firstSeal": "13:20:05",
+      "brokenCount": 0,
+      "sealYi": 0.36,
+      "amountYi": 1.93,
+      "sealRatio": 18.7,
+      "sealFlowRatio": 2.83,
+      "sealMvRatio": 2.83,
+      "circMv": 12.7,
+      "turnover": 17.05,
+      "volRatio": 2.02,
+      "limitUp": 22.67,
+      "limitDown": 12.21,
+      "quoteTime": "20261123153214",
+      "bids": [
+        [
+          22.67,
+          15674
+        ],
+        [
+          22.66,
+          7
+        ],
+        [
+          22.64,
+          25
+        ],
+        [
+          22.63,
+          8
+        ],
+        [
+          22.61,
+          6
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.36亿/封成比18.7%/封流比2.83% · 量化评分 89.6 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "1板·主线卡位",
+          "dept": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.36亿/封成比18.7%/封流比2.83%",
+          "net": "封单0.36亿"
+        },
+        {
+          "side": "共振",
+          "tag": "汽车零部",
+          "dept": "所属板块当日涨停 23 家 · 首封 13:20:05",
+          "net": "封成比18.7%"
+        }
+      ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 15.0,
+        "sealFlow": 22.6,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": 0.0
+      },
+      "backtest": {
+        "wtsRet": "量化评分 89.6",
+        "wtsMdd": "首封 13:20:05",
+        "wtsSharpe": "1连板",
+        "wtsWin": "板块涨停 23 家",
+        "mrRet": "封单 0.36亿",
+        "boRet": "封成比 18.7% / 封流比 2.83%",
+        "note": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.36亿/封成比18.7%/封流比2.83%"
       }
     },
     {
@@ -249,7 +408,7 @@
       "boards": 1,
       "boardLabel": "1板·主线卡位",
       "signalType": "HIGH_SEAL",
-      "signalTag": "通用设备主线·首封09:32:00·封成比57.6%",
+      "signalTag": "通用设备主线·首封09:32:00·封成比57.6%·封流比2.08%",
       "price": 17.94,
       "preClose": 16.31,
       "open": 16.6,
@@ -265,9 +424,10 @@
       "sealYi": 1.79,
       "amountYi": 3.11,
       "sealRatio": 57.6,
+      "sealFlowRatio": 2.08,
       "sealMvRatio": 2.08,
-      "turnover": 3.68,
       "circMv": 86.07,
+      "turnover": 3.68,
       "volRatio": 0.33,
       "limitUp": 17.94,
       "limitDown": 14.68,
@@ -316,12 +476,12 @@
           0
         ]
       ],
-      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6% · 量化评分 72.5 分",
+      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%/封流比2.08% · 量化评分 89.1 分",
       "lhbSeats": [
         {
           "side": "选股",
           "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%",
+          "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%/封流比2.08%",
           "net": "封单1.79亿"
         },
         {
@@ -331,114 +491,25 @@
           "net": "封成比57.6%"
         }
       ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 40.0,
+        "sealFlow": 16.6,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 0.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
       "backtest": {
-        "wtsRet": "量化评分 72.5",
+        "wtsRet": "量化评分 89.1",
         "wtsMdd": "首封 09:32:00",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 15 家",
         "mrRet": "封单 1.79亿",
-        "boRet": "封成比 57.6%",
-        "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%"
-      }
-    },
-    {
-      "code": "002122",
-      "prefix": "sz002122",
-      "name": "汇洲智能",
-      "sector": "通用设备",
-      "boards": 1,
-      "boardLabel": "1板·主线卡位",
-      "signalType": "HIGH_SEAL",
-      "signalTag": "通用设备主线·首封09:34:30·封成比36.9%",
-      "price": 2.96,
-      "preClose": 2.69,
-      "open": 2.74,
-      "openGap": 1.86,
-      "chg": 10.04,
-      "volHand": 610742,
-      "outerVol": 323968,
-      "innerVol": 286775,
-      "activeDiff": 37193,
-      "deltaHands": 0,
-      "firstSeal": "09:34:30",
-      "brokenCount": 0,
-      "sealYi": 0.65,
-      "amountYi": 1.76,
-      "sealRatio": 36.9,
-      "sealMvRatio": 1.11,
-      "turnover": 3.07,
-      "circMv": 58.81,
-      "volRatio": 3.17,
-      "limitUp": 2.96,
-      "limitDown": 2.42,
-      "quoteTime": "20261123161433",
-      "bids": [
-        [
-          2.96,
-          217949
-        ],
-        [
-          2.95,
-          847
-        ],
-        [
-          2.94,
-          238
-        ],
-        [
-          2.93,
-          385
-        ],
-        [
-          2.92,
-          1123
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.65亿/封成比36.9% · 量化评分 66.5 分",
-      "lhbSeats": [
-        {
-          "side": "选股",
-          "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.65亿/封成比36.9%",
-          "net": "封单0.65亿"
-        },
-        {
-          "side": "共振",
-          "tag": "通用设备",
-          "dept": "所属板块当日涨停 15 家 · 首封 09:34:30",
-          "net": "封成比36.9%"
-        }
-      ],
-      "backtest": {
-        "wtsRet": "量化评分 66.5",
-        "wtsMdd": "首封 09:34:30",
-        "wtsSharpe": "1连板",
-        "wtsWin": "板块涨停 15 家",
-        "mrRet": "封单 0.65亿",
-        "boRet": "封成比 36.9%",
-        "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.65亿/封成比36.9%"
+        "boRet": "封成比 57.6% / 封流比 2.08%",
+        "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.79亿/封成比57.6%/封流比2.08%"
       }
     },
     {
@@ -449,7 +520,7 @@
       "boards": 1,
       "boardLabel": "1板·主线卡位",
       "signalType": "HIGH_SEAL",
-      "signalTag": "汽车零部主线·首封09:43:42·封成比36.8%",
+      "signalTag": "汽车零部主线·首封09:43:42·封成比36.8%·封流比1.83%",
       "price": 13.43,
       "preClose": 12.21,
       "open": 11.74,
@@ -465,9 +536,10 @@
       "sealYi": 0.21,
       "amountYi": 0.57,
       "sealRatio": 36.8,
+      "sealFlowRatio": 1.83,
       "sealMvRatio": 1.83,
-      "turnover": 5.11,
       "circMv": 11.46,
+      "turnover": 5.11,
       "volRatio": 1.31,
       "limitUp": 13.43,
       "limitDown": 10.99,
@@ -516,12 +588,12 @@
           0
         ]
       ],
-      "lhbSummary": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8% · 量化评分 61.9 分",
+      "lhbSummary": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%/封流比1.83% · 量化评分 76.6 分",
       "lhbSeats": [
         {
           "side": "选股",
           "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%",
+          "dept": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%/封流比1.83%",
           "net": "封单0.21亿"
         },
         {
@@ -531,14 +603,249 @@
           "net": "封成比36.8%"
         }
       ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 29.4,
+        "sealFlow": 14.6,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 0.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
       "backtest": {
-        "wtsRet": "量化评分 61.9",
+        "wtsRet": "量化评分 76.6",
         "wtsMdd": "首封 09:43:42",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 23 家",
         "mrRet": "封单 0.21亿",
-        "boRet": "封成比 36.8%",
-        "note": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%"
+        "boRet": "封成比 36.8% / 封流比 1.83%",
+        "note": "维度2[主线高封成比卡位]：汽车零部板块(23家涨停)前排身位，封单0.21亿/封成比36.8%/封流比1.83%"
+      }
+    },
+    {
+      "code": "002931",
+      "prefix": "sz002931",
+      "name": "锋龙股份",
+      "sector": "通用设备",
+      "boards": 1,
+      "boardLabel": "1板·主线卡位",
+      "signalType": "HIGH_SEAL",
+      "signalTag": "通用设备主线·首封09:33:57·封成比33.4%·封流比1.57%",
+      "price": 42.46,
+      "preClose": 38.6,
+      "open": 39.38,
+      "openGap": 2.02,
+      "chg": 10.0,
+      "volHand": 97310,
+      "outerVol": 31375,
+      "innerVol": 65935,
+      "activeDiff": -34560,
+      "deltaHands": 0,
+      "firstSeal": "09:33:57",
+      "brokenCount": 1,
+      "sealYi": 1.35,
+      "amountYi": 4.04,
+      "sealRatio": 33.4,
+      "sealFlowRatio": 1.57,
+      "sealMvRatio": 1.57,
+      "circMv": 86.01,
+      "turnover": 4.8,
+      "volRatio": 0.37,
+      "limitUp": 42.46,
+      "limitDown": 34.74,
+      "quoteTime": "20261123161439",
+      "bids": [
+        [
+          42.46,
+          31742
+        ],
+        [
+          42.45,
+          607
+        ],
+        [
+          42.44,
+          10
+        ],
+        [
+          42.42,
+          15
+        ],
+        [
+          42.4,
+          31
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.35亿/封成比33.4%/封流比1.57% · 量化评分 71.8 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "1板·主线卡位",
+          "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.35亿/封成比33.4%/封流比1.57%",
+          "net": "封单1.35亿"
+        },
+        {
+          "side": "共振",
+          "tag": "通用设备",
+          "dept": "所属板块当日涨停 15 家 · 首封 09:33:57",
+          "net": "封成比33.4%"
+        }
+      ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 26.7,
+        "sealFlow": 12.6,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 0.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
+      "backtest": {
+        "wtsRet": "量化评分 71.8",
+        "wtsMdd": "首封 09:33:57",
+        "wtsSharpe": "1连板",
+        "wtsWin": "板块涨停 15 家",
+        "mrRet": "封单 1.35亿",
+        "boRet": "封成比 33.4% / 封流比 1.57%",
+        "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单1.35亿/封成比33.4%/封流比1.57%"
+      }
+    },
+    {
+      "code": "301413",
+      "prefix": "sz301413",
+      "name": "安培龙",
+      "sector": "通用设备",
+      "boards": 1,
+      "boardLabel": "1板·主线卡位",
+      "signalType": "WEAK_TO_STRONG",
+      "signalTag": "通用设备主线·首封09:59:18·封成比9.0%·封流比1.35% · 黄金换手",
+      "price": 74.76,
+      "preClose": 62.3,
+      "open": 60.75,
+      "openGap": -2.49,
+      "chg": 20.0,
+      "volHand": 120838,
+      "outerVol": 54205,
+      "innerVol": 66633,
+      "activeDiff": -12428,
+      "deltaHands": 0,
+      "firstSeal": "09:59:18",
+      "brokenCount": 1,
+      "sealYi": 0.77,
+      "amountYi": 8.57,
+      "sealRatio": 9.0,
+      "sealFlowRatio": 1.35,
+      "sealMvRatio": 1.35,
+      "circMv": 57.1,
+      "turnover": 15.82,
+      "volRatio": 1.02,
+      "limitUp": 74.76,
+      "limitDown": 49.84,
+      "quoteTime": "20261123161457",
+      "bids": [
+        [
+          74.76,
+          10309
+        ],
+        [
+          74.75,
+          333
+        ],
+        [
+          74.73,
+          1
+        ],
+        [
+          74.41,
+          2
+        ],
+        [
+          74.39,
+          9
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.77亿/封成比9.0%/封流比1.35% · 量化评分 65.5 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "1板·主线卡位",
+          "dept": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.77亿/封成比9.0%/封流比1.35%",
+          "net": "封单0.77亿"
+        },
+        {
+          "side": "共振",
+          "tag": "通用设备",
+          "dept": "所属板块当日涨停 15 家 · 首封 09:59:18",
+          "net": "封成比9.0%"
+        }
+      ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 7.2,
+        "sealFlow": 10.8,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
+      "backtest": {
+        "wtsRet": "量化评分 65.5",
+        "wtsMdd": "首封 09:59:18",
+        "wtsSharpe": "1连板",
+        "wtsWin": "板块涨停 15 家",
+        "mrRet": "封单 0.77亿",
+        "boRet": "封成比 9.0% / 封流比 1.35%",
+        "note": "维度2[主线高封成比卡位]：通用设备板块(15家涨停)前排身位，封单0.77亿/封成比9.0%/封流比1.35%"
       }
     },
     {
@@ -549,7 +856,7 @@
       "boards": 1,
       "boardLabel": "1板·龙虎榜合力",
       "signalType": "HOT_MONEY",
-      "signalTag": "机构 + 北向 + 游资(章盟主·净买+3.22亿",
+      "signalTag": "机构 + 北向 + 游资(章盟主·净买+3.22亿 · 黄金换手",
       "price": 31.86,
       "preClose": 28.96,
       "open": 29.31,
@@ -565,9 +872,10 @@
       "sealYi": 2.4,
       "amountYi": 25.19,
       "sealRatio": 9.5,
+      "sealFlowRatio": 0.99,
       "sealMvRatio": 0.99,
-      "turnover": 10.62,
       "circMv": 242.7,
+      "turnover": 10.62,
       "volRatio": 0.53,
       "limitUp": 31.86,
       "limitDown": 26.06,
@@ -655,13 +963,24 @@
           "net": "-2789万"
         }
       ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 7.6,
+        "sealFlow": 7.9,
+        "sector": 0.0,
+        "early": 0.0,
+        "lhb": 20.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": 0.0
+      },
       "backtest": {
-        "wtsRet": "量化评分 49.6",
+        "wtsRet": "量化评分 72.5",
         "wtsMdd": "首封 09:44:39",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 1 家",
         "mrRet": "封单 2.40亿",
-        "boRet": "封成比 9.5%",
+        "boRet": "封成比 9.5% / 封流比 0.99%",
         "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +32175万 (占总成交 +12.8%)，席位：机构 + 北向 + 游资(章盟主)"
       }
     },
@@ -673,7 +992,7 @@
       "boards": 1,
       "boardLabel": "1板·龙虎榜合力",
       "signalType": "HOT_MONEY",
-      "signalTag": "普通营业部·净买+2.20亿",
+      "signalTag": "普通营业部·净买+2.20亿 · 黄金换手",
       "price": 4.61,
       "preClose": 4.19,
       "open": 4.09,
@@ -689,9 +1008,10 @@
       "sealYi": 0.2,
       "amountYi": 14.54,
       "sealRatio": 1.4,
+      "sealFlowRatio": 0.33,
       "sealMvRatio": 0.33,
-      "turnover": 25.08,
       "circMv": 60.18,
+      "turnover": 25.08,
       "volRatio": 1.16,
       "limitUp": 4.61,
       "limitDown": 3.77,
@@ -779,138 +1099,25 @@
           "net": "-1695万"
         }
       ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 1.1,
+        "sealFlow": 2.6,
+        "sector": 0.0,
+        "early": 0.0,
+        "lhb": 20.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
       "backtest": {
-        "wtsRet": "量化评分 38.6",
+        "wtsRet": "量化评分 56.3",
         "wtsMdd": "首封 10:12:37",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 1 家",
         "mrRet": "封单 0.20亿",
-        "boRet": "封成比 1.4%",
+        "boRet": "封成比 1.4% / 封流比 0.33%",
         "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +22027万 (占总成交 +15.2%)，席位：普通营业部"
-      }
-    },
-    {
-      "code": "000530",
-      "prefix": "sz000530",
-      "name": "冰山冷热",
-      "sector": "通用设备",
-      "boards": 2,
-      "boardLabel": "2板·龙虎榜合力",
-      "signalType": "HOT_MONEY",
-      "signalTag": "机构 + 普通营业部·净买+1.93亿",
-      "price": 13.52,
-      "preClose": 12.29,
-      "open": 12.52,
-      "openGap": 1.87,
-      "chg": 10.01,
-      "volHand": 2238973,
-      "outerVol": 1166276,
-      "innerVol": 1072697,
-      "activeDiff": 93579,
-      "deltaHands": 0,
-      "firstSeal": "13:59:18",
-      "brokenCount": 4,
-      "sealYi": 0.56,
-      "amountYi": 28.89,
-      "sealRatio": 1.9,
-      "sealMvRatio": 0.69,
-      "turnover": 37.31,
-      "circMv": 81.14,
-      "volRatio": 0.96,
-      "limitUp": 13.52,
-      "limitDown": 11.06,
-      "quoteTime": "20261123161451",
-      "bids": [
-        [
-          13.52,
-          41604
-        ],
-        [
-          13.51,
-          488
-        ],
-        [
-          13.5,
-          68
-        ],
-        [
-          13.49,
-          15
-        ],
-        [
-          13.48,
-          81
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "龙虎榜净买 +1.93亿 (占成交 +3.2%)",
-      "lhbSeats": [
-        {
-          "side": "买1",
-          "tag": "机构",
-          "dept": "机构专用 (买20284万 / 卖6197万)",
-          "net": "+14088万"
-        },
-        {
-          "side": "买2",
-          "tag": "机构",
-          "dept": "机构专用 (买15780万 / 卖4982万)",
-          "net": "+10798万"
-        },
-        {
-          "side": "买3",
-          "tag": "普通营业部",
-          "dept": "东莞南京分公司 (买12270万 / 卖16630万)",
-          "net": "-4361万"
-        },
-        {
-          "side": "卖1",
-          "tag": "普通营业部",
-          "dept": "东莞南京分公司 (买12270万 / 卖16630万)",
-          "net": "-4361万"
-        },
-        {
-          "side": "卖2",
-          "tag": "普通营业部",
-          "dept": "东莞南京分公司 (买224万 / 卖13094万)",
-          "net": "-12870万"
-        },
-        {
-          "side": "卖3",
-          "tag": "普通营业部",
-          "dept": "国信浙江互联网分公司 (买7155万 / 卖11053万)",
-          "net": "-3897万"
-        }
-      ],
-      "backtest": {
-        "wtsRet": "量化评分 62.5",
-        "wtsMdd": "首封 13:59:18",
-        "wtsSharpe": "2连板",
-        "wtsWin": "板块涨停 15 家",
-        "mrRet": "封单 0.56亿",
-        "boRet": "封成比 1.9%",
-        "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +19344万 (占总成交 +3.2%)，席位：机构 + 普通营业部"
       }
     },
     {
@@ -937,9 +1144,10 @@
       "sealYi": 1.02,
       "amountYi": 25.87,
       "sealRatio": 3.9,
+      "sealFlowRatio": 1.19,
       "sealMvRatio": 1.19,
-      "turnover": 30.34,
       "circMv": 85.94,
+      "turnover": 30.34,
       "volRatio": 3.41,
       "limitUp": 14.73,
       "limitDown": 12.05,
@@ -988,7 +1196,7 @@
           0
         ]
       ],
-      "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 6 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 57.1 分",
+      "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 6 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 66.6 分",
       "lhbSeats": [
         {
           "side": "选股",
@@ -1003,114 +1211,25 @@
           "net": "封成比3.9%"
         }
       ],
+      "scoreParts": {
+        "board": 66.0,
+        "sealRatio": 3.1,
+        "sealFlow": 9.5,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 0.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -27.0
+      },
       "backtest": {
-        "wtsRet": "量化评分 57.1",
+        "wtsRet": "量化评分 66.6",
         "wtsMdd": "首封 09:30:51",
         "wtsSharpe": "3连板",
         "wtsWin": "板块涨停 7 家",
         "mrRet": "封单 1.02亿",
-        "boRet": "封成比 3.9%",
+        "boRet": "封成比 3.9% / 封流比 1.19%",
         "note": "维度4[高分歧风控/弱转强锚点]：盘中经历 6 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮"
-      }
-    },
-    {
-      "code": "603990",
-      "prefix": "sh603990",
-      "name": "麦迪科技",
-      "sector": "软件开发",
-      "boards": 0,
-      "boardLabel": "炸板池·风控/反包",
-      "signalType": "BROKEN_WARN",
-      "signalTag": "首触09:31:00·炸板2次·成交15.5亿",
-      "price": 21.1,
-      "preClose": 20.11,
-      "open": 20.68,
-      "openGap": 2.83,
-      "chg": 4.92,
-      "volHand": 736235,
-      "outerVol": 338627,
-      "innerVol": 397607,
-      "activeDiff": -58980,
-      "deltaHands": 0,
-      "firstSeal": "09:31:00",
-      "brokenCount": 2,
-      "sealYi": 0.0,
-      "amountYi": 15.5,
-      "sealRatio": 0.0,
-      "sealMvRatio": 0.0,
-      "turnover": 24.12,
-      "circMv": 64.41,
-      "volRatio": 2.49,
-      "limitUp": 22.12,
-      "limitDown": 18.1,
-      "quoteTime": "20261123161448",
-      "bids": [
-        [
-          21.1,
-          712
-        ],
-        [
-          21.09,
-          8
-        ],
-        [
-          21.04,
-          5
-        ],
-        [
-          21.03,
-          256
-        ],
-        [
-          21.02,
-          20
-        ]
-      ],
-      "asks": [
-        [
-          21.13,
-          1
-        ],
-        [
-          21.14,
-          1
-        ],
-        [
-          21.16,
-          460
-        ],
-        [
-          21.17,
-          5
-        ],
-        [
-          21.19,
-          26
-        ]
-      ],
-      "lhbSummary": "维度4[炸板风控/次日反包观察]：当日 09:31:00 曾封板后炸板回落，作为次日情绪修复反包或亏钱效应风控锚点 · 量化评分 60.0 分",
-      "lhbSeats": [
-        {
-          "side": "选股",
-          "tag": "炸板池·风控/反包",
-          "dept": "维度4[炸板风控/次日反包观察]：当日 09:31:00 曾封板后炸板回落，作为次日情绪修复反包或亏钱效应风控锚点",
-          "net": "封单0.00亿"
-        },
-        {
-          "side": "共振",
-          "tag": "软件开发",
-          "dept": "所属板块当日涨停 1 家 · 首封 09:31:00",
-          "net": "封成比0.0%"
-        }
-      ],
-      "backtest": {
-        "wtsRet": "量化评分 60.0",
-        "wtsMdd": "首封 09:31:00",
-        "wtsSharpe": "0连板",
-        "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 0.00亿",
-        "boRet": "封成比 0.0%",
-        "note": "维度4[炸板风控/次日反包观察]：当日 09:31:00 曾封板后炸板回落，作为次日情绪修复反包或亏钱效应风控锚点"
       }
     }
   ]
