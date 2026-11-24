@@ -1,11 +1,11 @@
 {
   "ok": true,
-  "generatedAt": "2026-11-24 19:19:58",
+  "generatedAt": "2026-11-24 21:29:29",
   "generatedAtTz": "Asia/Shanghai (UTC+8)",
-  "auctionNote": "北京时间 19:19 不在 09:15~09:40 竞价窗口：腾讯成交额非竞价口径，已保留量能比字段但未标记真弱转强、未重排。",
+  "auctionNote": "",
   "tradeDate": 20261124,
   "lhbDate": "2026-11-24",
-  "mode": "auction",
+  "mode": "post",
   "cycle": {
     "phase": "高位强分歧期",
     "cold": false,
@@ -174,10 +174,7 @@
         "mrRet": "封单 1.97亿",
         "boRet": "封成比 23.6% / 封流比 2.08%",
         "note": "维度1[最高空间板]：4连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
-      },
-      "auctionVolRatio": 32.3,
-      "prevDayAmountEstYi": 25.793,
-      "trueWeak": false
+      }
     },
     {
       "code": "603960",
@@ -289,10 +286,7 @@
         "mrRet": "封单 3.35亿",
         "boRet": "封成比 1288.5% / 封流比 7.56%",
         "note": "维度1[最高空间板]：3连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
-      },
-      "auctionVolRatio": 70.08,
-      "prevDayAmountEstYi": 0.371,
-      "trueWeak": false
+      }
     },
     {
       "code": "603926",
@@ -404,10 +398,7 @@
         "mrRet": "封单 0.66亿",
         "boRet": "封成比 65.3% / 封流比 1.75%",
         "note": "维度2[主线高封成比卡位]：汽车零部板块(8家涨停)前排身位，封单0.66亿/封成比65.3%/封流比1.75%"
-      },
-      "auctionVolRatio": 81.98,
-      "prevDayAmountEstYi": 1.232,
-      "trueWeak": false
+      }
     },
     {
       "code": "002931",
@@ -519,10 +510,7 @@
         "mrRet": "封单 1.46亿",
         "boRet": "封成比 60.6% / 封流比 1.54%",
         "note": "维度2[主线高封成比卡位]：通用设备板块(5家涨停)前排身位，封单1.46亿/封成比60.6%/封流比1.54%"
-      },
-      "auctionVolRatio": 60.52,
-      "prevDayAmountEstYi": 3.982,
-      "trueWeak": false
+      }
     },
     {
       "code": "300652",
@@ -634,10 +622,7 @@
         "mrRet": "封单 0.43亿",
         "boRet": "封成比 22.5% / 封流比 1.24%",
         "note": "维度2[主线高封成比卡位]：汽车零部板块(8家涨停)前排身位，封单0.43亿/封成比22.5%/封流比1.24%"
-      },
-      "auctionVolRatio": 142.22,
-      "prevDayAmountEstYi": 1.343,
-      "trueWeak": false
+      }
     },
     {
       "code": "002242",
@@ -773,10 +758,7 @@
         "mrRet": "封单 3.17亿",
         "boRet": "封成比 27.7% / 封流比 1.19%",
         "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +22098万 (占总成交 +19.3%)，席位：北向 + 普通营业部"
-      },
-      "auctionVolRatio": 46.29,
-      "prevDayAmountEstYi": 24.692,
-      "trueWeak": false
+      }
     },
     {
       "code": "603662",
@@ -912,10 +894,7 @@
         "mrRet": "封单 0.12亿",
         "boRet": "封成比 1.4% / 封流比 0.08%",
         "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +14551万 (占总成交 +11.0%)，席位：北向 + 普通营业部"
-      },
-      "auctionVolRatio": 196.63,
-      "prevDayAmountEstYi": 4.455,
-      "trueWeak": false
+      }
     },
     {
       "code": "300539",
@@ -1051,10 +1030,7 @@
         "mrRet": "封单 0.21亿",
         "boRet": "封成比 1.9% / 封流比 0.43%",
         "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +13579万 (占总成交 +12.2%)，席位：北向 + 普通营业部 + 机构"
-      },
-      "auctionVolRatio": 231.07,
-      "prevDayAmountEstYi": 4.821,
-      "trueWeak": false
+      }
     },
     {
       "code": "301575",
@@ -1166,10 +1142,7 @@
         "mrRet": "封单 1.59亿",
         "boRet": "封成比 52.6% / 封流比 6.35%",
         "note": "维度2[综合量化高分]：连板梯队、封成比、封流比与换手率综合评分前列"
-      },
-      "auctionVolRatio": 52.95,
-      "prevDayAmountEstYi": 5.703,
-      "trueWeak": false
+      }
     },
     {
       "code": "002086",
@@ -1281,10 +1254,7 @@
         "mrRet": "封单 0.77亿",
         "boRet": "封成比 3.1% / 封流比 1.07%",
         "note": "维度4[高分歧风控/弱转强锚点]：盘中经历 10 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮"
-      },
-      "auctionVolRatio": 145.13,
-      "prevDayAmountEstYi": 17.185,
-      "trueWeak": false
+      }
     }
   ]
 }
