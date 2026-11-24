@@ -3,10 +3,12 @@
 
 功能（100% 零第三方依赖，Python 3.8+ 标准库）：
   1) 托管 `/web/index.html` 超短游资实盘工作台网页（访问 http://<NAS_IP>:8899/ 即可直接打开）；
-  2) 内置后台自动选股调度器（Scheduler Thread）：
-     - 每个交易日 09:25:05 自动执行 `generate_top10_picks(mode="auction")`（9:25 集合竞价弱转强动态重排 Top 10）；
-     - 每个交易日 15:05:00 自动执行 `generate_top10_picks(mode="post")`（收盘涨跌停池初选 Top 10）；
-     - 每个交易日 17:35:00 自动执行 `generate_top10_picks(mode="post")`（龙虎榜游资/机构席位披露后终选 Top 10）；
+  2) 内置后台自动选股调度器（Scheduler Thread，统一北京时间 UTC+8）：
+     - 每个交易日 09:25 自动执行 `generate_top10_picks(mode="auction")`（9:25 集合竞价真弱转强重排 Top 10）；
+     - 每个交易日 09:35 / 09:45 自动执行 `run_intraday_replacement()`：剔除开盘跌幅 <= -3% 的弱势股，
+       补入当日 09:30~09:40 最先封板且封流比 >2% 的主线新卡位股；
+     - 每个交易日 15:05 自动执行 `generate_top10_picks(mode="post")`（收盘涨跌停池初选 Top 10）；
+     - 每个交易日 17:35 自动执行 `generate_top10_picks(mode="post")`（龙虎榜游资/机构席位披露后终选 Top 10）；
      - 选股结果自动持久化写入 `/web/daily_picks.json`，前端打开页面即自动同步最新 10 只标的！
   3) 提供 `/api/daily_picks?refresh=1&mode=post|auction` 接口：支持网页端一键手动触发重新选股；
   4) 提供 `/api/zt_pool` 与 `/api/quotes` 接口：实时拉取东财三池与腾讯五档盘口；
@@ -27,7 +29,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from realtime_and_short import fetch_em_pool, http_get, normalize_code
 from query import load as edson_load
-from auto_pick_top10 import generate_top10_picks
+from auto_pick_top10 import generate_top10_picks, fetch_l1_map
 
 WEBHOOK_URL = os.environ.get("EDSON_WEBHOOK_URL", "")
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -48,20 +50,145 @@ def run_auto_picker(mode="post"):
         return None
 
 
+def run_intraday_replacement(check_time):
+    """09:35 / 09:45 早盘卡位动态替补。
+
+    剔除 Top 10 中开盘跌幅 <= -3% 的弱势股，补入当日 09:30~09:40 最先封板
+    且封流比(封单/流通市值) > 2% 的主线新卡位股；无有效候选时保持原文件不变。
+    """
+    def _f(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _hhmmss(raw):
+        s = str(raw or "").strip().zfill(6)
+        return "%s:%s:%s" % (s[:2], s[2:4], s[4:6]) if len(s) == 6 and s.isdigit() else "--:--:--"
+
+    if not DAILY_PICKS_FILE.exists():
+        return None
+    try:
+        data = json.loads(DAILY_PICKS_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print("[Intraday %s] 读取 daily_picks.json 失败: %s" % (check_time, e))
+        return None
+
+    picks = data.get("picks") or []
+    if not picks:
+        return None
+
+    quotes = fetch_tencent_quotes(",".join(str(p.get("code") or "") for p in picks if p.get("code")))
+    qmap = {q.get("code"): q for q in quotes}
+    weak = [p for p in picks if _f((qmap.get(p.get("code")) or {}).get("openGap")) <= -3.0]
+    if not weak:
+        print("[Intraday %s] 无开盘跌幅 <= -3%% 的弱势股，保持原 Top 10。" % check_time)
+        return data
+
+    weak_codes = {str(p.get("code") or "") for p in weak}
+    kept = [p for p in picks if str(p.get("code") or "") not in weak_codes]
+    existing = {str(p.get("code") or "") for p in kept}
+    removed = [{"code": p.get("code"), "name": p.get("name"), "openGap": _f((qmap.get(p.get("code")) or {}).get("openGap"))} for p in weak]
+
+    now_bj = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
+    date_str = now_bj.strftime("%Y%m%d")
+    zt_pool = (fetch_em_pool("getTopicZTPool", date_str) or {}).get("pool") or []
+    top_sectors = [s.get("name") for s in (data.get("marketSummary") or {}).get("topSectors") or []][:3]
+
+    cards = []
+    for x in zt_pool:
+        fbt = str(x.get("fbt") or "").strip().zfill(6)
+        if not ("093000" <= fbt <= "094000"):
+            continue
+        code = str(x.get("c") or "")
+        if not code or code in existing or code in weak_codes:
+            continue
+        sector = x.get("hybk") or "其他"
+        if top_sectors and sector not in top_sectors:
+            continue
+        cards.append((code, x, _hhmmss(fbt), sector))
+
+    qmap_l1 = fetch_l1_map([c[0] for c in cards]) if cards else {}
+    scored = []
+    for code, x, fbt_str, sector in cards:
+        circ = _f((qmap_l1.get(code) or {}).get("circMv"))
+        if circ <= 0:
+            continue
+        seal_yi = _f(x.get("fund")) / 1e8
+        flow = round(seal_yi / max(0.01, circ) * 100.0, 2)
+        if flow > 2.0:
+            scored.append((flow, code, x, fbt_str, sector, seal_yi, circ))
+    scored.sort(key=lambda t: -t[0])
+
+    if not scored:
+        print("[Intraday %s] 检出 %d 只弱势股，但无符合 09:30~09:40 首封且封流比>2%% 的主线卡位股，保持原 Top 10。" %
+              (check_time, len(weak)))
+        return data
+
+    added = []
+    for flow, code, x, fbt_str, sector, seal_yi, circ in scored:
+        if len(kept) >= 10:
+            break
+        try:
+            prefix = normalize_code(code)[1]
+        except Exception:
+            prefix = ""
+        amount_yi = round(_f(x.get("amount")) / 1e8, 2)
+        kept.append({
+            "code": code, "prefix": prefix, "name": str(x.get("n") or ""), "sector": sector,
+            "boards": 1, "boardLabel": "%s早盘卡位" % check_time,
+            "signalType": "EARLY_CARD",
+            "signalTag": "【%s卡位替补】%s首封·封流比%.2f%%" % (check_time, fbt_str, flow),
+            "price": 0, "preClose": 0, "open": 0, "openGap": 0, "chg": 0,
+            "volHand": 0, "outerVol": 0, "innerVol": 0, "activeDiff": 0, "deltaHands": 0,
+            "firstSeal": fbt_str, "brokenCount": 0,
+            "sealYi": round(seal_yi, 2), "amountYi": amount_yi,
+            "sealRatio": round(seal_yi / max(0.01, amount_yi) * 100.0, 1),
+            "sealFlowRatio": flow, "sealMvRatio": flow,
+            "circMv": circ, "turnover": _f(x.get("hs")), "volRatio": 1.0,
+            "limitUp": 0, "limitDown": 0, "quoteTime": "",
+            "bids": [[0, 0]] * 5, "asks": [[0, 0]] * 5,
+            "lhbSummary": "09:30~09:40 早盘最先封板且封流比 >2% 的主线卡位股",
+            "lhbSeats": [{"side": "卡位", "tag": "主线", "dept": "%s 板块 · 首封 %s" % (sector, fbt_str),
+                          "net": "封流比 %.2f%%" % flow}],
+            "scoreParts": {},
+            "backtest": {"wtsRet": "早盘卡位替补", "wtsMdd": "首封 %s" % fbt_str,
+                         "wtsSharpe": "1板", "wtsWin": "%s 主线" % sector,
+                         "mrRet": "封单 %.2f亿" % seal_yi, "boRet": "封流比 %.2f%%" % flow,
+                         "note": "09:35/09:45 动态替补，剔除开盘跌破 -3% 的弱势股后补入"},
+        })
+        existing.add(code)
+        added.append({"code": code, "name": str(x.get("n") or ""), "firstSeal": fbt_str, "sealFlowRatio": flow})
+
+    data["picks"] = kept[:10]
+    data["generatedAt"] = now_bj.strftime("%Y-%m-%d %H:%M:%S")
+    data["generatedAtTz"] = "Asia/Shanghai (UTC+8)"
+    data["mode"] = "intraday_%s" % check_time.replace(":", "")
+    data["intradayReplacement"] = {"checkTime": check_time, "removed": removed, "added": added}
+    DAILY_PICKS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print("[Intraday %s] 剔除 %d 只弱势股，补入 %d 只早盘卡位股，当前 %d 只。" %
+          (check_time, len(removed), len(added), len(data["picks"])))
+    return data
+
+
 def background_scheduler_loop():
-    """后台定时选股守护线程：交易日 09:25、15:05、17:35 自动刷新 daily_picks.json。"""
+    """后台定时守护线程：交易日 09:25 / 09:35 / 09:45 / 15:05 / 17:35 自动刷新 daily_picks.json。"""
     triggered = set()
     # 启动时如果还没有 daily_picks.json，立即生成一次
     if not DAILY_PICKS_FILE.exists():
         run_auto_picker("post")
     while True:
-        now = dt.datetime.now()
+        # 与 auto_pick_top10 统一使用北京时间（UTC+8），不依赖运行环境 TZ
+        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
         if now.weekday() < 5:  # 周一至周五
             hm = now.strftime("%H:%M")
             day_key = now.strftime("%Y%m%d") + "_" + hm
             if hm == "09:25" and day_key not in triggered:
                 triggered.add(day_key)
                 run_auto_picker("auction")
+            elif hm in ("09:35", "09:45") and day_key not in triggered:
+                triggered.add(day_key)
+                run_intraday_replacement(hm)
             elif hm in ("15:05", "17:35") and day_key not in triggered:
                 triggered.add(day_key)
                 run_auto_picker("post")
@@ -245,12 +372,13 @@ def main():
     if args.webhook:
         WEBHOOK_URL = args.webhook
 
-    # 启动后台自动选股定时线程 (09:25 / 15:05 / 17:35 自动刷新 Top 10)
+    # 启动后台自动选股定时线程 (09:25 竞价 / 09:35+09:45 卡位替补 / 15:05+17:35 盘后)
     t = threading.Thread(target=background_scheduler_loop, daemon=True)
     t.start()
 
     srv = HTTPServer((args.host, args.port), SignalHandler)
     print("=== EdsonStock A股超短实盘信号与每日自动选股网关已启动: http://%s:%d ===" % (args.host, args.port))
+    print("  - 调度时点(北京时间): 09:25 竞价重排 | 09:35/09:45 早盘卡位替补 | 15:05/17:35 盘后选股")
     print("  - 超短信号前端工作台 : http://%s:%d/" % (args.host, args.port))
     print("  - 每日自动选股 Top10 : http://%s:%d/api/daily_picks (支持 ?refresh=1&mode=post|auction)" % (args.host, args.port))
     print("  - 实时五档与放量接口 : http://%s:%d/api/quotes?codes=603324,002771,002164" % (args.host, args.port))
