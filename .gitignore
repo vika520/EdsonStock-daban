@@ -14,3 +14,6 @@ cache/
 .DS_Store
 .idea/
 .vscode/
+
+# 运行时缓存（基本面/选股，勿提交）
+data/
