@@ -188,6 +188,13 @@ def fetch_first_yin_ma5_candidates(codes, limit=2, today=None):
     return results[:limit]
 
 
+def _norm_date(s):
+    """统一日期格式为 YYYY-MM-DD（龙虎榜披露 '2026-11-25' vs 涨停池 qdate '20261125' 格式不一致，
+    直接字符串比较会导致日期锁永远不解锁、龙虎榜席位永久空缺）。"""
+    s = str(s or "").strip().replace("-", "").replace("/", "")[:8]
+    return "%s-%s-%s" % (s[:4], s[4:6], s[6:8]) if len(s) == 8 else str(s or "")
+
+
 def _fetch_lhb_rows(base, code, tdate, rpt, sort_col):
     """拉取单只股票单侧（买/卖）席位明细，取满前 5 席。"""
     p_seat = {
@@ -239,7 +246,8 @@ def fetch_billboard_map(extra_codes=None, qdate=None):
     latest_date = str(rows[0].get("TRADE_DATE", ""))[:10]
 
     # 日期锁：龙虎榜最新披露日必须等于选股交易日，否则不使用（避免 15:05 用昨日榜给今日加减分）
-    if qdate and latest_date and latest_date != str(qdate):
+    # 注意格式统一：latest_date 是 'YYYY-MM-DD'，qdate 是东财池的 'YYYYMMDD'，必须规范化后比较
+    if qdate and latest_date and latest_date != _norm_date(qdate):
         return latest_date, {}, set()
 
     bmap = {}
@@ -753,7 +761,7 @@ def generate_top10_picks(date_str=None, mode="post"):
         "tradeDate": qdate,
         "lhbDate": lhb_date,
         # 龙虎榜日期锁：lhbDate != tradeDate 表示当日榜未披露，本次未使用龙虎榜加减分
-        "lhbLocked": bool(lhb_date) and lhb_date == str(qdate),
+        "lhbLocked": bool(lhb_date) and lhb_date == _norm_date(qdate),
         "mode": mode,
         "cycle": {
             "phase": phase, "cold": cold, "hot": hot, "dataReady": data_ready,
