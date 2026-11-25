@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generatedAt": "2026-11-25 20:05:37",
+  "generatedAt": "2026-11-25 20:07:08",
   "generatedAtTz": "Asia/Shanghai (UTC+8)",
   "auctionNote": "",
   "tradeDate": 20261125,
@@ -27,7 +27,7 @@
     "dtCount": 43,
     "zbCount": 30,
     "sentimentDate": "20261125",
-    "sentimentSource": "cache(C:\\Users\\Admin\\.cache\\edsonstock\\extras.json)",
+    "sentimentSource": "https://raw.githubusercontent.com/vika520/Edsonstock/main/wolf-cycle/data/extras.json",
     "quotas": {
       "high": 0,
       "firstYin": 2,
@@ -956,37 +956,37 @@
       "deltaHands": 0,
       "firstSeal": "09:35:44",
       "brokenCount": 12,
-      "sealYi": 0.0,
+      "sealYi": 0.03,
       "amountYi": 4.7,
-      "sealRatio": 0.0,
-      "sealFlowRatio": 0.0,
-      "sealMvRatio": 0.0,
+      "sealRatio": 0.6,
+      "sealFlowRatio": 0.07,
+      "sealMvRatio": 0.07,
       "circMv": 41.48,
       "turnover": 11.43,
       "volRatio": 3.75,
       "limitUp": 17.97,
       "limitDown": 14.71,
-      "quoteTime": "20261125161500",
+      "quoteTime": "20261125161453",
       "bids": [
         [
-          0.0,
-          0
+          17.97,
+          1584
         ],
         [
-          0.0,
-          0
+          17.96,
+          331
         ],
         [
-          0.0,
-          0
+          17.95,
+          35
         ],
         [
-          0.0,
-          0
+          17.94,
+          15
         ],
         [
-          0.0,
-          0
+          17.93,
+          15
         ]
       ],
       "asks": [
