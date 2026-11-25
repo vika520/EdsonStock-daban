@@ -126,11 +126,14 @@
       <button data-tab="radar" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white transition">
         1. 盘中实时信号与五档盯盘
       </button>
+      <button data-tab="swing" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+        2. 趋势波段 · 价值动量（1~4 周）
+      </button>
       <button data-tab="datasource" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-        2. 超短数据源质量评测与实盘架构
+        3. 超短数据源质量评测与实盘架构
       </button>
       <button data-tab="webhook" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-        3. 毫秒级 Webhook 推送配置与联调
+        4. 毫秒级 Webhook 推送配置与联调
       </button>
     </div>
     <div class="text-xs text-slate-400 flex items-center gap-2">
@@ -309,7 +312,140 @@
       </div>
     </section>
 
-    <!-- TAB 2: 超短数据源质量评测与实盘架构 -->
+    <!-- TAB 2: 趋势波段 · 价值动量（1~4 周持仓） -->
+    <section id="tab-swing" class="hidden space-y-4">
+      <!-- 块 1：择时红绿灯与仓位罗盘 -->
+      <div class="glass-card rounded-xl p-3.5">
+        <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="compass" class="w-4 h-4 text-sky-400"></i>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">市场择时红绿灯与仓位罗盘</h2>
+            <span id="swingDataTime" class="text-[10px] text-slate-500 mono"></span>
+          </div>
+          <button id="btnSwingRefresh" class="px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 重新计算
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-center">
+            <div class="text-[10px] text-slate-400 mb-1">综合评分</div>
+            <div id="swingRegimeScore" class="text-3xl font-bold mono">--</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">满分 100</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-center">
+            <div class="text-[10px] text-slate-400 mb-1">周期状态</div>
+            <div id="swingRegimePhase" class="text-lg font-bold">--</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">进攻 ≥65 | 震荡 40~64 | 防守 &lt;40</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-center">
+            <div class="text-[10px] text-slate-400 mb-1">建议波段总仓位</div>
+            <div id="swingRegimePos" class="text-lg font-bold mono text-amber-300">--</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">仅指波段子策略仓位</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+            <div class="text-[10px] text-slate-400">结构因子</div>
+            <div id="swingRegimeFactors" class="text-[10px] text-slate-300 leading-relaxed space-y-0.5 max-h-24 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 块 2：行业/题材轮动雷达 -->
+      <div class="glass-card rounded-xl p-3.5">
+        <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">行业轮动雷达（腾讯板块 · 拥挤度为量价代理）</h2>
+          </div>
+          <div id="swingSectorStage" class="text-[10px] text-slate-400"></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-800">
+                <th class="py-1.5 px-2 text-left">板块</th>
+                <th class="py-1.5 px-2 text-left">阶段</th>
+                <th class="py-1.5 px-2 text-right">总分</th>
+                <th class="py-1.5 px-2 text-right">RS20</th>
+                <th class="py-1.5 px-2 text-right">主力20日</th>
+                <th class="py-1.5 px-2 text-right">上涨占比</th>
+                <th class="py-1.5 px-2 text-right">换手%</th>
+                <th class="py-1.5 px-2 text-right">成交占比%</th>
+              </tr>
+            </thead>
+            <tbody id="swingSectorBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 块 3：波段精选池 + 交易计划 Inspector -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-7 glass-card rounded-xl p-3.5">
+          <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="waves" class="w-4 h-4 text-amber-400"></i>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">波段精选池（实时价联动买点区间）</h2>
+            </div>
+            <span id="swingPicksCount" class="text-[10px] text-slate-400"></span>
+          </div>
+          <div id="swingPicksEmpty" class="py-8 text-center text-xs text-slate-500 hidden"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-slate-400 border-b border-slate-800">
+                  <th class="py-1.5 px-2 text-left">标的 / 主线</th>
+                  <th class="py-1.5 px-2 text-left">形态</th>
+                  <th class="py-1.5 px-2 text-right">实时价 / 距买区</th>
+                  <th class="py-1.5 px-2 text-right">PE / ROE</th>
+                  <th class="py-1.5 px-2 text-right">总分</th>
+                </tr>
+              </thead>
+              <tbody id="swingPicksBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="lg:col-span-5 glass-card rounded-xl p-3.5">
+          <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="crosshair" class="w-4 h-4 text-red-400"></i>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">波段交易计划</h2>
+            </div>
+            <span id="swingPlanCode" class="text-[10px] text-slate-400 mono"></span>
+          </div>
+          <div id="swingPlanBox" class="space-y-2.5"></div>
+        </div>
+      </div>
+
+      <!-- 块 4：历史波段信号追踪账本 -->
+      <div class="glass-card rounded-xl p-3.5">
+        <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="notebook-pen" class="w-4 h-4 text-sky-400"></i>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">波段信号追踪账本（透明实证）</h2>
+          </div>
+          <span id="swingTrackerCount" class="text-[10px] text-slate-400"></span>
+        </div>
+        <div class="overflow-x-auto max-h-56 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-800">
+                <th class="py-1.5 px-2 text-left">代码 / 名称</th>
+                <th class="py-1.5 px-2 text-left">入选日</th>
+                <th class="py-1.5 px-2 text-right">入选参考价</th>
+                <th class="py-1.5 px-2 text-right">现价 / 浮动</th>
+                <th class="py-1.5 px-2 text-right">持有天数</th>
+                <th class="py-1.5 px-2 text-left">状态</th>
+              </tr>
+            </thead>
+            <tbody id="swingTrackerBody"></tbody>
+          </table>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">
+          口径声明：财务/预告/解禁/K线为真实公开数据；ROE 为 EPS/BPS 年化估算；板块拥挤度为量价代理（非 60 日分位）。
+          本栏目为量化风格模拟，不构成任何投资建议；波段信号经 120 只样本 3 年回测（trend_pullback p=0.001 / stage2_start p&lt;0.001，详见仓库 references/swing_design.md）。
+        </p>
+      </div>
+    </section>
+
     <section id="tab-datasource" class="hidden space-y-4">
       <div class="glass-card rounded-xl p-4">
         <h2 class="text-sm font-bold text-white mb-1">超短实盘信号系统的核心瓶颈：数据源质量与延迟对比</h2>
@@ -2423,7 +2559,202 @@
     }
 
     
-    // 自动从后端 /api/daily_picks 或同目录 daily_picks.json 同步最新每日自动选股 Top 10
+    // ==================== TAB: 趋势波段 · 价值动量 ====================
+    let _swingData = null;
+    let _swingSelCode = null;
+    const _swingPriceMap = {};   // code -> {price, chg}（腾讯实时）
+
+    async function loadSwingPicks(forceRefresh = false) {
+      const urls = forceRefresh
+        ? ["/api/swing_picks?refresh=1", "./swing_picks.json?_t=" + Date.now()]
+        : ["/api/swing_picks", "./swing_picks.json?_t=" + Date.now()];
+      for (const u of urls) {
+        try {
+          const res = await fetch(u);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data && data.ok && data.regime) {
+            _swingData = data;
+            renderSwingAll();
+            return true;
+          }
+        } catch (e) {}
+      }
+      const box = document.getElementById("swingRegimePhase");
+      if (box) box.textContent = "加载失败";
+      return false;
+    }
+
+    function swingPhaseColor(phase) {
+      if (phase === "进攻期") return "text-red-400";
+      if (phase === "震荡轮动期") return "text-amber-300";
+      return "text-emerald-400";   // 防守避险期
+    }
+
+    function renderSwingAll() {
+      const d = _swingData;
+      if (!d) return;
+      // 块 1 择时
+      const rg = d.regime || {};
+      const scoreEl = document.getElementById("swingRegimeScore");
+      scoreEl.textContent = rg.score != null ? rg.score : "--";
+      scoreEl.className = "text-3xl font-bold mono " + swingPhaseColor(rg.phase);
+      const phaseEl = document.getElementById("swingRegimePhase");
+      phaseEl.textContent = rg.phase || "--";
+      phaseEl.className = "text-lg font-bold " + swingPhaseColor(rg.phase);
+      document.getElementById("swingRegimePos").textContent = rg.suggestedPos || "--";
+      const f = rg.factors || {};
+      document.getElementById("swingRegimeFactors").innerHTML = [
+        ["指数趋势", f.indexTrend], ["市场宽度", f.breadth], ["衍生/杠杆", f.derivatives], ["估值背景", f.erpBackground]
+      ].map(([k, v]) => "<div><span class='text-slate-500'>" + escapeHtml(k) + "：</span>" + escapeHtml(v || "-") + "</div>").join("");
+      document.getElementById("swingDataTime").textContent = (d.generatedAt || "") + " · " + (d.mode || "");
+
+      // 块 2 轮动雷达
+      const secBody = document.getElementById("swingSectorBody");
+      const boards = d.sectorRotation || [];
+      secBody.innerHTML = boards.map(b => {
+        const stClass = b.stage === "主升期" ? "bg-red-500/15 text-red-300 border-red-500/30"
+          : b.stage === "启动期" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+          : b.stage === "过热预警" ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+          : "bg-slate-700/40 text-slate-400 border-slate-600/40";
+        const rsClass = b.rs20 >= 0 ? "text-red-400" : "text-emerald-400";
+        return "<tr class='hover:bg-slate-800/60 transition'>" +
+          "<td class='py-1.5 px-2 font-semibold text-white'>" + escapeHtml(b.name) + "</td>" +
+          "<td class='py-1.5 px-2'><span class='px-1.5 py-0.5 rounded text-[10px] font-semibold border " + stClass + "'>" + escapeHtml(b.stage) + "</span></td>" +
+          "<td class='py-1.5 px-2 text-right mono font-semibold'>" + escapeHtml(b.totalScore) + "</td>" +
+          "<td class='py-1.5 px-2 text-right mono " + rsClass + "'>" + escapeHtml(b.rs20) + "</td>" +
+          "<td class='py-1.5 px-2 text-right mono " + (b.mainFlow20Rel > 0 ? "text-red-400" : "text-emerald-400") + "'>" + escapeHtml(b.mainFlow20Rel) + "‰</td>" +
+          "<td class='py-1.5 px-2 text-right mono'>" + escapeHtml(b.upRatio) + "%</td>" +
+          "<td class='py-1.5 px-2 text-right mono'>" + escapeHtml(b.hsl) + "</td>" +
+          "<td class='py-1.5 px-2 text-right mono text-slate-400'>" + escapeHtml(b.amtSharePct) + "</td>" +
+          "</tr>";
+      }).join("") || "<tr><td colspan='8' class='py-6 text-center text-slate-500'>轮动数据未生成</td></tr>";
+      const sc = (d.sectorMeta && d.sectorMeta.stageCount) || {};
+      document.getElementById("swingSectorStage").textContent = Object.entries(sc).map(([k, v]) => k + " " + v).join(" · ") || "";
+
+      // 块 3 精选池
+      const picks = d.picks || [];
+      const emptyBox = document.getElementById("swingPicksEmpty");
+      const picksBody = document.getElementById("swingPicksBody");
+      document.getElementById("swingPicksCount").textContent = (d.note || "") + " · 漏斗 " + (d.funnel ? (d.funnel.candidates + "→" + d.funnel.picked) : "-");
+      if (!picks.length) {
+        emptyBox.classList.remove("hidden");
+        emptyBox.textContent = d.note || "当前周期无波段买入信号（防守期暂停进攻型信号属正常输出）";
+        picksBody.innerHTML = "";
+      } else {
+        emptyBox.classList.add("hidden");
+        picksBody.innerHTML = picks.map(p => {
+          const sel = p.code === _swingSelCode;
+          const q = _swingPriceMap[p.code];
+          const px = q ? q.price : null;
+          const zone = p.tradePlan && p.tradePlan.buyZone;
+          const stop = p.tradePlan && p.tradePlan.stopLoss;
+          // 距买区：在区间内=绿色「进入低吸区」；低于止损=红色预警；高于买区上沿=等待回踩
+          let zoneTxt = "等待开盘", zoneCls = "text-slate-400";
+          if (px != null && zone) {
+            if (px >= zone[0] && px <= zone[1]) { zoneTxt = "★ 进入低吸区"; zoneCls = "text-emerald-400 font-bold"; }
+            else if (stop && px <= stop) { zoneTxt = "⚠ 触及止损线"; zoneCls = "text-purple-400 font-bold"; }
+            else if (px < zone[0]) { zoneTxt = "低" + ((zone[0] / px - 1) * 100).toFixed(1) + "%"; zoneCls = "text-slate-300"; }
+            else { zoneTxt = "高" + ((px / zone[1] - 1) * 100).toFixed(1) + "%"; zoneCls = "text-amber-300"; }
+          }
+          return "<tr data-scode='" + escapeHtml(p.code) + "' class='swing-row cursor-pointer transition " + (sel ? "bg-sky-500/15 border-l-2 border-l-sky-500" : "hover:bg-slate-800/60") + "'>" +
+            "<td class='py-2 px-2'><div class='font-bold text-white'>" + escapeHtml(p.name) + "</div><div class='text-[10px] text-slate-400 mono'>" + escapeHtml(p.code) + " · " + escapeHtml(p.sector) + " (" + escapeHtml(p.sectorStage) + ")</div></td>" +
+            "<td class='py-2 px-2'><span class='px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-sky-500/15 text-sky-300 border-sky-500/30'>" + escapeHtml(p.setupLabel) + "</span></td>" +
+            "<td class='py-2 px-2 text-right mono'><div class='" + zoneCls + "'>" + (px != null ? px.toFixed(2) : "--") + "</div><div class='text-[10px] " + zoneCls + "'>" + zoneTxt + "</div></td>" +
+            "<td class='py-2 px-2 text-right mono text-slate-300'><div>" + escapeHtml(p.fundamentals.peTtm != null ? p.fundamentals.peTtm : "--") + "倍</div><div class='text-[10px] text-slate-400'>ROE " + escapeHtml(p.fundamentals.roeTtmEst != null ? p.fundamentals.roeTtmEst : "--") + "%</div></td>" +
+            "<td class='py-2 px-2 text-right mono font-semibold text-amber-300'>" + escapeHtml(p.totalScore) + "</td>" +
+            "</tr>";
+        }).join("");
+        picksBody.querySelectorAll(".swing-row").forEach(row => {
+          row.addEventListener("click", () => {
+            _swingSelCode = row.getAttribute("data-scode");
+            renderSwingAll();
+          });
+        });
+        if (!_swingSelCode || !picks.some(p => p.code === _swingSelCode)) _swingSelCode = picks[0].code;
+      }
+      renderSwingPlan();
+
+      // 块 4 账本
+      const tr = d.activeTracker || [];
+      const trBody = document.getElementById("swingTrackerBody");
+      document.getElementById("swingTrackerCount").textContent = tr.length + " 条";
+      trBody.innerHTML = tr.slice().reverse().map(t => {
+        const q = _swingPriceMap[t.code];
+        const ret = q && t.entryRef ? (q.price / t.entryRef - 1) * 100 : null;
+        return "<tr class='hover:bg-slate-800/60 transition'>" +
+          "<td class='py-1.5 px-2'><span class='font-semibold text-white'>" + escapeHtml(t.name) + "</span> <span class='mono text-[10px] text-slate-400'>" + escapeHtml(t.code) + "</span></td>" +
+          "<td class='py-1.5 px-2 mono text-slate-400'>" + escapeHtml(t.entryDate) + "</td>" +
+          "<td class='py-1.5 px-2 text-right mono'>" + escapeHtml(t.entryRef) + "</td>" +
+          "<td class='py-1.5 px-2 text-right mono " + (ret != null ? (ret >= 0 ? "text-red-400" : "text-emerald-400") : "text-slate-500") + "'>" + (q ? q.price.toFixed(2) + " (" + (ret >= 0 ? "+" : "") + ret.toFixed(1) + "%)" : "--") + "</td>" +
+          "<td class='py-1.5 px-2 text-right mono text-slate-400'>" + (t.daysHeld || 0) + "</td>" +
+          "<td class='py-1.5 px-2'><span class='px-1.5 py-0.5 rounded text-[10px] border bg-slate-700/40 text-slate-300 border-slate-600/40'>" + escapeHtml(t.status) + "</span></td>" +
+          "</tr>";
+      }).join("") || "<tr><td colspan='6' class='py-6 text-center text-slate-500'>尚无历史信号</td></tr>";
+    }
+
+    function renderSwingPlan() {
+      const d = _swingData;
+      const box = document.getElementById("swingPlanBox");
+      const codeEl = document.getElementById("swingPlanCode");
+      if (!d || !box) return;
+      const picks = d.picks || [];
+      const p = picks.find(x => x.code === _swingSelCode) || picks[0];
+      if (!p) { box.innerHTML = "<div class='py-8 text-center text-xs text-slate-500'>防守期无交易计划</div>"; codeEl.textContent = ""; return; }
+      codeEl.textContent = p.name + " (" + p.code + ")";
+      const tp = p.tradePlan || {};
+      const q = _swingPriceMap[p.code];
+      const px = q ? q.price : tp.refPrice;
+      // 价格标尺：止损线 → 买区 → 现价 → 保本 → 追踪
+      const items = [
+        { label: "硬止损", v: tp.stopLoss, cls: "text-purple-400", note: "max(入场-2×ATR, 前低×0.985) · " + tp.stopPct + "%" },
+        { label: "买入区间", v: (tp.buyZone || []).join(" ~ "), cls: "text-emerald-400", note: "MA20 × [0.99, 1.03]" },
+        { label: "参考入场", v: tp.refPrice, cls: "text-white", note: "ATR14=" + tp.atr14 + " · MA20=" + tp.ma20 },
+        { label: "现价", v: px != null ? Number(px).toFixed(2) : "--", cls: "text-amber-300", note: q ? ("腾讯实时 " + (q.chg >= 0 ? "+" : "") + q.chg.toFixed(2) + "%") : "待开盘联动" },
+        { label: "+8% 保本线", v: tp.breakevenTrigger, cls: "text-sky-400", note: "浮盈达 8% 后止损上移至成本" },
+      ];
+      box.innerHTML = items.map(it =>
+        "<div class='flex items-center justify-between p-2 rounded bg-slate-900/80 border border-slate-800/80'>" +
+        "<div><div class='text-[10px] text-slate-400'>" + escapeHtml(it.label) + "</div><div class='text-[10px] text-slate-500'>" + escapeHtml(it.note || "") + "</div></div>" +
+        "<div class='mono font-bold " + it.cls + "'>" + escapeHtml(it.v != null ? it.v : "--") + "</div></div>"
+      ).join("") +
+      "<div class='text-[10px] text-slate-400 bg-slate-900/60 px-2 py-1.5 rounded border border-slate-800/80 leading-relaxed'>" +
+      escapeHtml(tp.trailingRule || "") + " · " + escapeHtml(tp.holdHorizon || "") + " · " + escapeHtml(tp.riskPosSuggestion || "") + "</div>";
+    }
+
+    // 腾讯实时价联动：只轮询波段 picks + 账本里的代码（与打板池轮询独立，轻量 5s）
+    function pollSwingQuotes() {
+      const d = _swingData;
+      if (!d) return;
+      const codes = [];
+      (d.picks || []).forEach(p => codes.push(p.prefix || p.code));
+      (d.activeTracker || []).forEach(t => { if (t.code) codes.push(t.code); });
+      if (!codes.length) return;
+      const prefs = codes.map(c => {
+        const pure = String(c).replace(/^(sh|sz|bj)/, "");
+        if (/^(60|68|51|58)/.test(pure)) return "sh" + pure;
+        if (/^(92|8|4)/.test(pure)) return "bj" + pure;
+        return "sz" + pure;
+      });
+      const s = document.createElement("script");
+      s.src = "https://qt.gtimg.cn/q=" + prefs.join(",") + "&_t=" + Date.now();
+      s.charset = "gbk";
+      s.onload = () => {
+        prefs.forEach(pf => {
+          const raw = window["v_" + pf];
+          if (!raw || typeof raw !== "string") return;
+          const p = raw.split("~");
+          if (p.length < 40) return;
+          const px = safeNum(p[3], 0), chg = safeNum(p[32], 0);
+          if (px > 0) _swingPriceMap[p[2]] = { price: px, chg: chg };
+        });
+        renderSwingAll();
+        s.remove();
+      };
+      s.onerror = () => s.remove();
+      document.body.appendChild(s);
+    }
+
     // 注意：替换池子时保留用户手动添加的自选股（_custom），否则后台一次刷新就把自选冲掉
     let _lastPicksGeneratedAt = "";
     async function loadDailyAutoPicks(mode = "post", forceRefresh = false, silent = false) {
@@ -2554,7 +2885,7 @@
           });
           btn.className = "tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white transition";
 
-          ["radar", "datasource", "webhook"].forEach(t => {
+          ["radar", "swing", "datasource", "webhook"].forEach(t => {
             const sec = document.getElementById(`tab-${t}`);
             if (sec) sec.classList.toggle("hidden", t !== targetTab);
           });
@@ -2672,6 +3003,25 @@
           pollRealTencentQuotes();
         }
       });
+
+      // ==================== 波段 Tab 初始化 ====================
+      // 手动「重新计算」：走后端 ?refresh=1（有后端时）或本地静态 JSON
+      document.getElementById("btnSwingRefresh").addEventListener("click", () => {
+        loadSwingPicks(true).then(ok => showToast(ok ? "波段选股已重新计算" : "波段数据刷新失败：后端不可用或数据未生成"));
+      });
+      // 初始加载（静态模式也能渲染）
+      loadSwingPicks(false);
+      // 实时价联动：交易时段 5s，非交易时段 60s 兜底（波段只盯现价 vs 买区/止损，无需 3s 高频）
+      setInterval(() => {
+        const swingSec = document.getElementById("tab-swing");
+        if (!swingSec || swingSec.classList.contains("hidden")) return;   // Tab 不可见不轮询
+        pollSwingQuotes();
+      }, 5000);
+      // 波段池热更新：每 120s 比对一次（后端 15:20/18:00 更新后自动同步）
+      setInterval(() => {
+        if (document.hidden) return;
+        loadSwingPicks(false);
+      }, 120000);
 
       // 恢复用户上次添加的自选股（首轮实盘同步完成后执行，避免与初始加载争抢并发锁）
       pollRealTencentQuotes(() => restoreCustomStocks());
