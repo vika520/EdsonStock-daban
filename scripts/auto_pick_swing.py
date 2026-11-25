@@ -30,8 +30,18 @@ from ashare_backtest import is_limit_up_close
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 MAX_PICKS = {"进攻期": 8, "震荡轮动期": 5, "防守避险期": 0}
-MAX_CAND_PER_SECTOR = 6     # 每板块取成分股上限（控制请求量）
+MAX_CAND_PER_SECTOR = 15    # 每板块取成分股上限（2026-11-25 审计：6→15，成交额前 6 常被千亿巨盘垄断，Stage-2 中坚被挡在第一关）
+MAX_CIRC_MV_YI = 3000.0     # 流通市值 > 3000 亿的低弹性巨无霸剔除（银行/白酒龙头等）
 VQ_MIN = 60.0               # VQ 打分下限
+
+
+def _sector_pe_median(cons):
+    """板块内有效 PE(TTM>0) 的中位数，供 value_quality_score 做行业中性相对估值。"""
+    pes = sorted(c["pe"] for c in cons if c.get("pe") and c["pe"] > 0)
+    if not pes:
+        return None
+    n = len(pes)
+    return round(pes[n // 2] if n % 2 else (pes[n // 2 - 1] + pes[n // 2]) / 2.0, 2)
 
 
 # ---------------------------------------------------------------- 第 1 层：市场择时
@@ -222,6 +232,48 @@ def classify_setup(bars, i, limit_pct):
     return None
 
 
+def setup_quality_score(bars, i, setup_type):
+    """形态质量分（0~100）。2026-11-25 策略升级：技术形态本身的质量此前完全不参与排序。
+
+    MA20_PULLBACK：回踩缩量程度（越缩越好）+ 距 MA20 紧凑度 + 下影线承接
+    STAGE2_START：站上 MA60/MA120 的幅度（温和突破优于脉冲）+ 近 5 日量能放大倍数
+    """
+    closes = [b["close"] for b in bars]
+    vols = [b["vol"] for b in bars]
+    t = i - 1
+    b = bars[t]
+    try:
+        if setup_type == "MA20_PULLBACK":
+            ma20 = sma(closes, 20, t) or closes[t]
+            # 缩量程度：近 3 日均量 / 冲量段均量（取近 10 日最大量为冲量代理），0.45 以下满分
+            imp_vol = max(vols[t - 10:t - 2]) if t >= 10 else vols[t]
+            pb_vol = sum(vols[t - 2:t + 1]) / 3.0
+            shrink = min(1.0, pb_vol / max(1.0, imp_vol))            # 0=极度缩量, 1=没缩
+            s_shrink = 45.0 * max(0.0, 1.0 - shrink / 0.6)            # 缩到 0 满分，0.6 以上零分
+            # 紧凑度：偏离 MA20 绝对值 <=1% 满分，3.5% 零分
+            dev = abs(closes[t] / ma20 - 1.0)
+            s_tight = 30.0 * max(0.0, 1.0 - dev / 0.035)
+            # 下影线承接：下影线 >= 实体 1.5 倍满分
+            body = abs(b["close"] - b["open"])
+            lower = (min(b["open"], b["close"]) - b["low"])
+            s_shadow = 25.0 * min(1.0, lower / max(0.01, body * 1.5))
+            return round(s_shrink + s_tight + s_shadow, 1)
+        elif setup_type == "STAGE2_START":
+            ma60 = sma(closes, 60, t) or closes[t]
+            ma120 = sma(closes, 120, t) or closes[t]
+            # 站上幅度：1%~6% 温和满分，>15% 追高风险扣分
+            above = max(closes[t] / ma60 - 1.0, closes[t] / ma120 - 1.0) * 100
+            s_above = 50.0 * (1.0 if 1.0 <= above <= 6.0 else max(0.0, 1.0 - (above - 6.0) / 10.0) if above > 6.0 else max(0.0, above / 1.0))
+            # 量能放大：1.3~2.5 倍满分
+            vol60 = sma(vols, 60, t - 5) or vols[t]
+            vr = sum(vols[t - 4:t + 1]) / 5.0 / max(1.0, vol60)
+            s_vol = 50.0 * (1.0 if 1.3 <= vr <= 2.5 else max(0.0, 1.0 - abs(vr - 1.9) / 1.5))
+            return round(s_above + s_vol, 1)
+    except Exception:
+        return 50.0
+    return 50.0
+
+
 def _stock_meta_from_bars(bars, limit_pct):
     """从日线提取 hard_veto 需要的补充字段：20日均成交额(亿)、上市天数、近15日连板数。"""
     n = len(bars)
@@ -240,19 +292,31 @@ def _stock_meta_from_bars(bars, limit_pct):
     }
 
 
-def build_trade_plan(bars, i, entry_px, limit_pct):
-    """第 5 层：交易计划。entry_px = T 日开盘（含滑点近似用开盘价）。"""
+def build_trade_plan(bars, i, entry_px, limit_pct, setup_type="MA20_PULLBACK"):
+    """第 5 层：交易计划。entry_px = T 日开盘（含滑点近似用开盘价）。
+
+    2026-11-25 审计修复：STAGE2_START 是放量突破 MA60/MA120，收盘价常高于 MA20 5%~8%，
+    买区若硬编码 [MA20*0.99, MA20*1.03] 会永远「高于买区等待回踩」，右侧启动买点无法介入。
+    STAGE2 的买区改为 [entry*0.985, entry*1.015]（贴近现价的右侧突破买点）。
+    """
     closes = [b["close"] for b in bars]
     t = i - 1
     ma20 = sma(closes, 20, t)
     a14 = atr(bars, 14, t) or entry_px * 0.02
     swing_low = min(x["low"] for x in bars[i - 15:i])
     stop = max(0.0, min(entry_px - 2.0 * a14, swing_low * 0.985))
+    if setup_type == "STAGE2_START":
+        lo, hi = entry_px * 0.985, entry_px * 1.015
+        zone_note = "右侧突破买点：现价 ±1.5%"
+    else:
+        lo, hi = (ma20 or entry_px) * 0.99, (ma20 or entry_px) * 1.03
+        zone_note = "MA20 × [0.99, 1.03] 回踩低吸"
     return {
         "refPrice": round(entry_px, 2),
         "ma20": round(ma20, 2) if ma20 else None,
         "atr14": round(a14, 2),
-        "buyZone": [round(max(0.01, (ma20 or entry_px) * 0.99), 2), round((ma20 or entry_px) * 1.03, 2)],
+        "buyZone": [round(max(0.01, lo), 2), round(hi, 2)],
+        "buyZoneNote": zone_note,
         "stopLoss": round(stop, 2),
         "stopPct": round((stop / entry_px - 1) * 100, 1),
         "breakevenTrigger": round(entry_px * 1.08, 2),
@@ -300,12 +364,36 @@ def generate_swing_picks(mode="post", top_sectors=5):
     all_boards = ((hy.get("boards") or []) if hy.get("ok") else []) + ((gn.get("boards") or []) if gn.get("ok") else [])
     boards = [b for b in all_boards if b["stage"] in ("主升期", "启动期")]
     picks, errors = [], []
-    funnel = {"sectors": len(boards), "candidates": 0, "vetoed": 0, "lowVQ": 0, "noBars": 0, "noSetup": 0, "chased": 0, "picked": 0, "observed": 0}
+    funnel = {"sectors": len(boards), "candidates": 0, "dupSkip": 0, "giantSkip": 0, "vetoed": 0, "lowVQ": 0,
+              "noBars": 0, "noSetup": 0, "picked": 0, "observed": 0}
     veto_examples = []
+    # 2026-11-25 审计修复：行业(hy)与概念(gn)板块高度重叠（「银行」vs「银行概念」），循环内原先无去重，
+    # 工商银行/招行/茅台/美的等 10 只被重复评估、触发形态后占两个席位。seen_codes 全局去重，跨板块取较高板块分。
+    seen_codes = {}      # code -> 已记录的板块分（跨板块时取较高者）
     for bd in boards:
-        cons = fetch_sector_constituents(bd["code"])
+        cons_raw = fetch_sector_constituents(bd["code"])
+        # 巨无霸剔除 + 板块内 PE 中位数（行业中性相对估值）
+        cons = [c for c in cons_raw if not (c.get("circMv") or 0) > MAX_CIRC_MV_YI]
+        funnel["giantSkip"] += len(cons_raw) - len(cons)
+        # PE 中位数用剔除前的全量成分算（更稳定）
+        sector_pe_med = _sector_pe_median(cons_raw)
         for cs in cons:
             code = cs["code"]
+            if code in seen_codes:
+                # 已被另一板块评估过：若本板块分更高，则把该 pick 的板块归属换成当前板块
+                funnel["dupSkip"] += 1
+                if bd["totalScore"] > seen_codes[code]:
+                    for pk in picks:
+                        if pk["code"] == code:
+                            pk["sector"] = bd["name"]
+                            pk["sectorStage"] = bd["stage"]
+                            pk["scores"]["sector"] = bd["totalScore"]
+                            vq_ = pk["scores"]["fundamental"]
+                            q_ = pk["scores"].get("setup", 50.0)
+                            pk["totalScore"] = round(bd["totalScore"] * 0.35 + vq_ * 0.40 + q_ * 0.25, 1)
+                    seen_codes[code] = bd["totalScore"]
+                continue
+            seen_codes[code] = bd["totalScore"]
             funnel["candidates"] += 1
             try:
                 # 1) 日线先拉：veto 与形态都需要它
@@ -314,7 +402,7 @@ def generate_swing_picks(mode="post", top_sectors=5):
                     funnel["noBars"] += 1
                     continue
                 meta = _stock_meta_from_bars(bars, limit_pct)
-                # 2) 排雷：补齐 amount20Yi / listedDays / 连板数（原先缺参导致成交额否决失效）
+                # 2) 排雷：补齐 amount20Yi / listedDays / 连板数
                 fin = fetch_financials(code)
                 pred = fetch_predict(code)
                 vetoed, reasons = hard_veto(code, fin, pred, unlock,
@@ -325,7 +413,10 @@ def generate_swing_picks(mode="post", top_sectors=5):
                     if len(veto_examples) < 5:
                         veto_examples.append({"code": code, "reasons": reasons})
                     continue
-                vq, vq_parts, vq_notes = value_quality_score(fin, pred, pe_ttm=cs["pe"])
+                # 行业中性相对估值：把板块内 PE 中位数传入（原先未传，退化为全市场 PE=10 满分的绝对口径）
+                vq, vq_parts, vq_notes = value_quality_score(fin, pred, pe_ttm=cs["pe"], sector_pe_median=sector_pe_med)
+                if sector_pe_med:
+                    vq_notes.append("板块PE中位%.1f(相对估值)" % sector_pe_med)
                 if vq < VQ_MIN:
                     funnel["lowVQ"] += 1
                     continue
@@ -336,19 +427,24 @@ def generate_swing_picks(mode="post", top_sectors=5):
                     funnel["noSetup"] += 1
                     continue
                 setup_type, setup_label = setup
-                # vcp_breakout 在 S1 不显著（p=0.122）——只作观察标记，不入正式推荐
                 is_observe = setup_type.startswith("OBSERVE_")
                 if is_observe:
                     funnel["observed"] += 1
+                # 形态质量分：回踩缩量/紧凑度/下影线承接 或 Stage-2 突破幅度/量能
+                q_score = setup_quality_score(bars, i, setup_type)
                 b_today = bars[-1]
-                entry_px = b_today["close"] * 1.001   # 盘后口径：以收盘价为参考入场价
-                plan = build_trade_plan(bars, i, entry_px, limit_pct)
+                entry_px = b_today["close"] * 1.001
+                plan = build_trade_plan(bars, i, entry_px, limit_pct, setup_type=setup_type)
+                # 中盘降权：S1 实证 40~80 亿 trend_pullback t=1.33 不显著，总分 -10
+                midcap_pen = -10.0 if (setup_type == "MA20_PULLBACK" and 40.0 <= (cs.get("circMv") or 0) < 80.0) else 0.0
+                total = bd["totalScore"] * 0.35 + vq * 0.40 + q_score * 0.25 + midcap_pen
                 picks.append({
                     "code": code, "name": cs["name"], "sector": bd["name"], "sectorStage": bd["stage"],
                     "setupType": setup_type, "setupLabel": setup_label,
                     "observe": is_observe,
-                    "totalScore": round(bd["totalScore"] * 0.4 + vq * 0.6, 1),
-                    "scores": {"sector": bd["totalScore"], "fundamental": vq, "vqParts": vq_parts},
+                    "totalScore": round(total, 1),
+                    "scores": {"sector": bd["totalScore"], "fundamental": vq, "setup": q_score,
+                               "vqParts": vq_parts, "midcapPenalty": midcap_pen},
                     "fundamentals": {
                         "circMvYi": cs["circMv"], "peTtm": cs["pe"], "amt20Yi": meta["amount20Yi"],
                         "roeTtmEst": fin.get("roeTtmEst"), "revYoy": fin.get("revYoy"), "npYoy": fin.get("npYoy"),
@@ -362,7 +458,6 @@ def generate_swing_picks(mode="post", top_sectors=5):
             except RuntimeError as e:
                 errors.append({"code": code, "error": str(e)[:80]})
                 if "WAF" in str(e):
-                    # WAF 拦截：立即中止，输出 ok=false（调用方保留旧文件）
                     return {"ok": False, "error": "腾讯 WAF 拦截：%s" % str(e)[:120], "tradeDate": date_str, "generatedAt": now_bj.strftime("%Y-%m-%d %H:%M:%S")}
             except Exception as e:
                 errors.append({"code": code, "error": str(e)[:60]})
@@ -391,13 +486,15 @@ MAX_TRACK_DAYS = 20
 def _tracker_refresh_prices(tracker):
     """拉取账本内活跃标的的最新收盘价，刷新 lastRet 与退出状态。
 
-    状态机：已止损(收盘<=stopLoss) > 已触发保本(收盘>=breakevenTrigger) > 超时离场(daysHeld>=20) > 持仓中。
-    已终结状态（已止损/超时离场）不再刷新。
+    状态机（优先级从高到低）：
+      已止损(收盘<=stopLoss) > 已止盈(浮盈曾>=15% 且 收盘破MA10 或 自最高回撤>=2.5×ATR)
+      > 已触发保本(收盘>=breakevenTrigger) > 超时离场(daysHeld>=20) > 持仓中
+    已终结状态（已止损/已止盈/超时离场）不再刷新。
+    2026-11-25 审计修复：原先只记止损不记止盈，账本胜率统计系统性偏低。
     """
-    active = [t for t in tracker if t.get("status") not in ("已止损", "超时离场")]
+    active = [t for t in tracker if t.get("status") not in ("已止损", "已止盈", "超时离场")]
     if not active:
         return
-    # 腾讯 L1 快照取最新价（含已收盘场景的收盘价）
     try:
         from auto_pick_top10 import fetch_l1_map
         l1 = fetch_l1_map([t["code"] for t in active])
@@ -409,10 +506,29 @@ def _tracker_refresh_prices(tracker):
             continue
         px = q["price"]
         t["lastPx"] = round(px, 2)
-        if t.get("entryRef"):
-            t["lastRet"] = round((px / t["entryRef"] - 1) * 100, 2)
+        entry = t.get("entryRef") or 0
+        if entry:
+            t["lastRet"] = round((px / entry - 1) * 100, 2)
+        t["maxPx"] = round(max(t.get("maxPx") or 0, px), 2)   # 持有期内最高价
         stop = t.get("stopLoss") or 0
         be = t.get("breakevenTrigger") or 0
+        max_ret = ((t["maxPx"] / entry - 1) * 100) if entry else 0
+        # ---- 止盈：浮盈曾达 +15% 后，收盘跌破 MA10 或自最高回撤 >= 2.5×ATR（仅此时才拉日线，控制请求量）
+        if entry and max_ret >= 15.0:
+            try:
+                _, _, _, _, bars = fetch_bars(t["code"], 60)
+                if len(bars) >= 12:
+                    closes = [b["close"] for b in bars]
+                    ma10 = sma(closes, 10, len(closes) - 1)
+                    a14 = atr(bars, 14, len(bars) - 2) or entry * 0.02
+                    broke_ma10 = bool(ma10) and closes[-1] < ma10
+                    drawdown_atr = (t["maxPx"] - px) / max(0.01, a14)
+                    if broke_ma10 or drawdown_atr >= 2.5:
+                        t["status"] = "已止盈"
+                        t["exitReason"] = "破MA10" if broke_ma10 else "自高点回撤%.1f×ATR" % drawdown_atr
+                        continue
+            except Exception:
+                pass
         if stop and px <= stop:
             t["status"] = "已止损"
         elif be and px >= be:
@@ -438,7 +554,7 @@ def update_tracker(result):
     by_code = {t.get("code"): t for t in tracker if t.get("code")}
     # 幂等刷新旧条目：每天首次运行才 +1 天
     for t in tracker:
-        if t.get("status") in ("已止损", "超时离场"):
+        if t.get("status") in ("已止损", "已止盈", "超时离场"):
             continue
         if t.get("lastUpdatedDate") != today:
             t["daysHeld"] = (t.get("daysHeld") or 0) + 1

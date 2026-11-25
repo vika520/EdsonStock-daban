@@ -33,6 +33,23 @@ CTX.verify_mode = ssl.CERT_NONE
 
 # 游资 / 量化 / 散户席位关键词字典
 SEAT_TAGS = [
+    # ---- 2026 主流量化 / 外资 / 合并后券商席位（放在最前，优先级高于旧关键词）----
+    # 国泰君安 + 海通证券合并为「国泰海通」，旧关键词「国泰君安证券股份有限公司总部」匹配不到合并后名称
+    ("国泰海通证券股份有限公司总部", "量化(国泰海通总部)"),
+    ("国泰海通证券股份有限公司上海松江区中山东路", "游资(松江中山东路)"),
+    ("高盛(中国)证券有限责任公司上海世纪大道", "量化/外资(高盛世纪大道)"),
+    ("高盛证券有限责任公司上海世纪大道", "量化/外资(高盛世纪大道)"),
+    ("摩根大通证券(中国)有限公司上海银城中路", "量化/外资(摩根大通银城中路)"),
+    ("摩根士丹利证券(中国)有限公司上海国际金融中心", "量化/外资(大摩IFC)"),
+    ("中金公司", "量化(中金)"),
+    ("华泰证券股份有限公司总部", "量化(华泰总部)"),
+    ("中信建投证券股份有限公司总部", "量化(中信建投总部)"),
+    ("招商证券股份有限公司总部", "量化(招商总部)"),
+    ("东方财富证券股份有限公司拉萨", "散户(拉萨天团/东财)"),
+    ("国泰海通证券股份有限公司上海长宁区江苏路", "游资(章盟主)"),
+    ("国泰海通证券股份有限公司上海浦东新区银城中路", "游资(银城中路)"),
+    ("国泰海通证券股份有限公司北京中关村南大街", "游资(中关村)"),
+    # ---- 原有席位 ----
     ("机构专用", "机构"),
     ("沪股通", "北向"),
     ("深股通", "北向"),
@@ -223,9 +240,15 @@ def action_kline(code_raw, period="day", count=30, fq="qfq"):
 
 
 def fetch_em_pool(pool_name, date_str):
-    """使用 curl 子进程拉取东财当日涨停/跌停/炸板池（getTopicZTPool / getTopicDTPool / getTopicZBPool）。"""
+    """使用 curl 子进程拉取东财当日涨停/跌停/炸板池（getTopicZTPool / getTopicDTPool / getTopicZBPool）。
+
+    排序参数按池区分（2026-11-25 审计修复）：跌停池元素没有 fbt（首封时间）字段，
+    传 sort=fbt:asc 服务端返回 tc=43 但 pool=[]（跌停明细全部丢失，dtCount 恒为 0）。
+    跌停池必须用 sort=fund:asc；涨停/炸板池保持 fbt:asc。
+    """
+    sort_field = "fund:asc" if pool_name == "getTopicDTPool" else "fbt:asc"
     url = ("https://push2ex.eastmoney.com/%s?ut=7eea3edcaed734bea9cbfc24409ed989"
-           "&dpt=wz.ztzt&Pageindex=0&Pagesize=500&sort=fbt:asc&date=%s" % (pool_name, date_str))
+           "&dpt=wz.ztzt&Pageindex=0&Pagesize=500&sort=%s&date=%s" % (pool_name, sort_field, date_str))
     try:
         text = http_get(url, headers={"Referer": "https://quote.eastmoney.com/ztb/"}, use_curl=True)
         d = json.loads(text)

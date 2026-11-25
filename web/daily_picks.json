@@ -1,11 +1,22 @@
 {
   "ok": true,
-  "generatedAt": "2026-11-25 18:04:36",
+  "generatedAt": "2026-11-25 20:05:37",
   "generatedAtTz": "Asia/Shanghai (UTC+8)",
   "auctionNote": "",
   "tradeDate": 20261125,
   "lhbDate": "2026-11-25",
   "lhbLocked": true,
+  "riskAnchors": [
+    {
+      "code": "600103",
+      "name": "青山纸业",
+      "boards": 1,
+      "effBoards": 1.0,
+      "brokenCount": 3,
+      "sealRatio": 2.9,
+      "riskTag": "烂板高危(炸板3次/封成比2.9%)"
+    }
+  ],
   "mode": "post",
   "cycle": {
     "phase": "冰点/退潮期",
@@ -13,10 +24,10 @@
     "hot": false,
     "dataReady": true,
     "ztCount": 51,
-    "dtCount": 0,
+    "dtCount": 43,
     "zbCount": 30,
     "sentimentDate": "20261125",
-    "sentimentSource": "https://raw.githubusercontent.com/vika520/Edsonstock/main/wolf-cycle/data/extras.json",
+    "sentimentSource": "cache(C:\\Users\\Admin\\.cache\\edsonstock\\extras.json)",
     "quotas": {
       "high": 0,
       "firstYin": 2,
@@ -32,7 +43,7 @@
     "phase": "冰点/退潮期",
     "ztCount": 51,
     "zbCount": 30,
-    "dtCount": 0,
+    "dtCount": 43,
     "zbRate": 37.0,
     "maxBoard": 5,
     "topSectors": [
@@ -66,264 +77,13 @@
   ],
   "picks": [
     {
-      "code": "002197",
-      "prefix": "sz002197",
-      "name": "证通电子",
-      "sector": "首阴回踩",
-      "boards": 1,
-      "boardLabel": "首阴回踩5日线",
-      "signalType": "FIRST_YIN_MA5",
-      "signalTag": "收盘5.83/MA5 5.96 · 首阴回踩",
-      "price": 6.41,
-      "preClose": 5.83,
-      "open": 5.73,
-      "openGap": -1.72,
-      "chg": 9.95,
-      "volHand": 407461,
-      "outerVol": 149524,
-      "innerVol": 257937,
-      "activeDiff": -108413,
-      "deltaHands": 0,
-      "firstSeal": "MA5回踩",
-      "brokenCount": 0,
-      "sealYi": 0.69,
-      "amountYi": 2.5,
-      "sealRatio": 27.6,
-      "sealFlowRatio": 2.02,
-      "sealMvRatio": 2.02,
-      "circMv": 34.23,
-      "turnover": 7.63,
-      "volRatio": 0.52,
-      "limitUp": 6.41,
-      "limitDown": 5.25,
-      "quoteTime": "20261125161445",
-      "bids": [
-        [
-          6.41,
-          107231
-        ],
-        [
-          6.4,
-          4311
-        ],
-        [
-          6.39,
-          131
-        ],
-        [
-          6.38,
-          147
-        ],
-        [
-          6.37,
-          219
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "维度1[冰点防守]：近期涨停股首阴回踩 5 日线，规避高位连板补跌 · 量化评分 82.0 分",
-      "lhbSeats": [
-        {
-          "side": "选股",
-          "tag": "首阴回踩5日线",
-          "dept": "维度1[冰点防守]：近期涨停股首阴回踩 5 日线，规避高位连板补跌",
-          "net": "封单0.00亿"
-        },
-        {
-          "side": "共振",
-          "tag": "首阴回踩",
-          "dept": "所属板块当日涨停 1 家 · 首封 MA5回踩",
-          "net": "封成比0.0%"
-        }
-      ],
-      "scoreParts": {},
-      "backtest": {
-        "wtsRet": "量化评分 82.0",
-        "wtsMdd": "首封 MA5回踩",
-        "wtsSharpe": "1连板",
-        "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 0.00亿",
-        "boRet": "封成比 0.0% / 封流比 0.00%",
-        "note": "维度1[冰点防守]：近期涨停股首阴回踩 5 日线，规避高位连板补跌"
-      }
-    },
-    {
-      "code": "600103",
-      "prefix": "sh600103",
-      "name": "青山纸业",
-      "sector": "首阴回踩",
-      "boards": 1,
-      "boardLabel": "首阴回踩5日线",
-      "signalType": "FIRST_YIN_MA5",
-      "signalTag": "收盘3.44/MA5 3.34 · 首阴回踩",
-      "price": 3.78,
-      "preClose": 3.44,
-      "open": 3.41,
-      "openGap": -0.87,
-      "chg": 9.88,
-      "volHand": 6766690,
-      "outerVol": 2869737,
-      "innerVol": 3896953,
-      "activeDiff": -1027216,
-      "deltaHands": 0,
-      "firstSeal": "MA5回踩",
-      "brokenCount": 0,
-      "sealYi": 0.73,
-      "amountYi": 24.84,
-      "sealRatio": 2.9,
-      "sealFlowRatio": 0.87,
-      "sealMvRatio": 0.87,
-      "circMv": 83.63,
-      "turnover": 30.59,
-      "volRatio": 1.65,
-      "limitUp": 3.78,
-      "limitDown": 3.1,
-      "quoteTime": "20261125161456",
-      "bids": [
-        [
-          3.78,
-          193744
-        ],
-        [
-          3.77,
-          4955
-        ],
-        [
-          3.76,
-          492
-        ],
-        [
-          3.75,
-          971
-        ],
-        [
-          3.74,
-          798
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "龙虎榜净买 +2.53亿 (占成交 +10.2%)",
-      "lhbSeats": [
-        {
-          "side": "买1",
-          "tag": "游资(章盟主)",
-          "dept": "国泰海通长宁区江苏路 (买13184万 / 卖0万)",
-          "net": "+13184万"
-        },
-        {
-          "side": "买2",
-          "tag": "普通营业部",
-          "dept": "国新北京分公司 (买7410万 / 卖0万)",
-          "net": "+7410万"
-        },
-        {
-          "side": "买3",
-          "tag": "北向",
-          "dept": "沪股通专用 (买6872万 / 卖0万)",
-          "net": "+6872万"
-        },
-        {
-          "side": "买4",
-          "tag": "普通营业部",
-          "dept": "国泰海通成都天府大道 (买6474万 / 卖0万)",
-          "net": "+6474万"
-        },
-        {
-          "side": "买5",
-          "tag": "普通营业部",
-          "dept": "国泰海通北京知春路 (买5020万 / 卖0万)",
-          "net": "+5020万"
-        },
-        {
-          "side": "卖1",
-          "tag": "北向",
-          "dept": "沪股通专用 (买0万 / 卖4254万)",
-          "net": "-4254万"
-        },
-        {
-          "side": "卖2",
-          "tag": "普通营业部",
-          "dept": "国泰海通长沙五一大道第二 (买0万 / 卖2545万)",
-          "net": "-2545万"
-        },
-        {
-          "side": "卖3",
-          "tag": "普通营业部",
-          "dept": "国信浙江互联网分公司 (买0万 / 卖2406万)",
-          "net": "-2406万"
-        },
-        {
-          "side": "卖4",
-          "tag": "普通营业部",
-          "dept": "东方财富山南香曲东路 (买0万 / 卖2405万)",
-          "net": "-2405万"
-        },
-        {
-          "side": "卖5",
-          "tag": "散户(拉萨天团)",
-          "dept": "东方财富拉萨金融城南环路 (买0万 / 卖2081万)",
-          "net": "-2081万"
-        }
-      ],
-      "scoreParts": {},
-      "backtest": {
-        "wtsRet": "量化评分 82.0",
-        "wtsMdd": "首封 MA5回踩",
-        "wtsSharpe": "1连板",
-        "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 0.00亿",
-        "boRet": "封成比 0.0% / 封流比 0.00%",
-        "note": "维度1[冰点防守]：近期涨停股首阴回踩 5 日线，规避高位连板补跌"
-      }
-    },
-    {
       "code": "600814",
       "prefix": "sh600814",
       "name": "杭州解百",
       "sector": "一般零售",
       "boards": 3,
       "boardLabel": "3板·主线卡位",
+      "effBoards": 3.0,
       "signalType": "HIGH_SEAL",
       "signalTag": "一般零售主线·首封09:30:03·封成比74.1%·封流比4.01%",
       "price": 8.35,
@@ -393,7 +153,7 @@
           0
         ]
       ],
-      "lhbSummary": "维度2[主线高封成比卡位]：一般零售板块(4家涨停)前排身位，封单2.46亿/封成比74.1%/封流比4.01% · 量化评分 153.1 分",
+      "lhbSummary": "维度2[主线高封成比卡位]：一般零售板块(4家涨停)前排身位，封单2.46亿/封成比74.1%/封流比4.01% · 量化评分 165.1 分",
       "lhbSeats": [
         {
           "side": "选股",
@@ -413,14 +173,14 @@
         "sealRatio": 40.0,
         "sealFlow": 32.1,
         "sector": 15.0,
-        "early": 0.0,
+        "early": 12.0,
         "lhb": 0.0,
         "turnover": 0.0,
         "quantPenalty": 0.0,
         "brokenPenalty": 0.0
       },
       "backtest": {
-        "wtsRet": "量化评分 153.1",
+        "wtsRet": "量化评分 165.1",
         "wtsMdd": "首封 09:30:03",
         "wtsSharpe": "3连板",
         "wtsWin": "板块涨停 4 家",
@@ -430,124 +190,13 @@
       }
     },
     {
-      "code": "002728",
-      "prefix": "sz002728",
-      "name": "特一药业",
-      "sector": "中药Ⅱ",
-      "boards": 1,
-      "boardLabel": "1板·主线卡位",
-      "signalType": "HIGH_SEAL",
-      "signalTag": "中药Ⅱ主线·首封09:31:33·封成比64.9%·封流比1.77% · 缩量一字",
-      "price": 8.35,
-      "preClose": 7.59,
-      "open": 7.81,
-      "openGap": 2.9,
-      "chg": 10.01,
-      "volHand": 139249,
-      "outerVol": 35239,
-      "innerVol": 104010,
-      "activeDiff": -68771,
-      "deltaHands": 0,
-      "firstSeal": "09:31:33",
-      "brokenCount": 0,
-      "sealYi": 0.74,
-      "amountYi": 1.14,
-      "sealRatio": 64.9,
-      "sealFlowRatio": 1.77,
-      "sealMvRatio": 1.77,
-      "circMv": 41.86,
-      "turnover": 2.78,
-      "volRatio": 1.03,
-      "limitUp": 8.35,
-      "limitDown": 6.83,
-      "quoteTime": "20261125161454",
-      "bids": [
-        [
-          8.35,
-          88455
-        ],
-        [
-          8.34,
-          2657
-        ],
-        [
-          8.33,
-          50
-        ],
-        [
-          8.32,
-          141
-        ],
-        [
-          8.31,
-          19
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "维度2[主线高封成比卡位]：中药Ⅱ板块(3家涨停)前排身位，封单0.74亿/封成比64.9%/封流比1.77% · 量化评分 71.2 分",
-      "lhbSeats": [
-        {
-          "side": "选股",
-          "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：中药Ⅱ板块(3家涨停)前排身位，封单0.74亿/封成比64.9%/封流比1.77%",
-          "net": "封单0.74亿"
-        },
-        {
-          "side": "共振",
-          "tag": "中药Ⅱ",
-          "dept": "所属板块当日涨停 3 家 · 首封 09:31:33",
-          "net": "封成比64.9%"
-        }
-      ],
-      "scoreParts": {
-        "board": 22.0,
-        "sealRatio": 40.0,
-        "sealFlow": 14.2,
-        "sector": 15.0,
-        "early": 0.0,
-        "lhb": 0.0,
-        "turnover": -20.0,
-        "quantPenalty": 0.0,
-        "brokenPenalty": 0.0
-      },
-      "backtest": {
-        "wtsRet": "量化评分 71.2",
-        "wtsMdd": "首封 09:31:33",
-        "wtsSharpe": "1连板",
-        "wtsWin": "板块涨停 3 家",
-        "mrRet": "封单 0.74亿",
-        "boRet": "封成比 64.9% / 封流比 1.77%",
-        "note": "维度2[主线高封成比卡位]：中药Ⅱ板块(3家涨停)前排身位，封单0.74亿/封成比64.9%/封流比1.77%"
-      }
-    },
-    {
       "code": "301089",
       "prefix": "sz301089",
       "name": "拓新药业",
       "sector": "化学制药",
       "boards": 1,
       "boardLabel": "1板·主线卡位",
+      "effBoards": 1.8,
       "signalType": "HIGH_SEAL",
       "signalTag": "化学制药主线·首封09:39:06·封成比21.4%·封流比1.62%",
       "price": 21.34,
@@ -617,7 +266,7 @@
           0
         ]
       ],
-      "lhbSummary": "维度2[主线高封成比卡位]：化学制药板块(8家涨停)前排身位，封单0.31亿/封成比21.4%/封流比1.62% · 量化评分 67.1 分",
+      "lhbSummary": "维度2[主线高封成比卡位]：化学制药板块(8家涨停)前排身位，封单0.31亿/封成比21.4%/封流比1.62% · 量化评分 96.7 分",
       "lhbSeats": [
         {
           "side": "选股",
@@ -633,18 +282,18 @@
         }
       ],
       "scoreParts": {
-        "board": 22.0,
+        "board": 39.6,
         "sealRatio": 17.1,
         "sealFlow": 13.0,
         "sector": 15.0,
-        "early": 0.0,
+        "early": 12.0,
         "lhb": 0.0,
         "turnover": 0.0,
         "quantPenalty": 0.0,
         "brokenPenalty": 0.0
       },
       "backtest": {
-        "wtsRet": "量化评分 67.1",
+        "wtsRet": "量化评分 96.7",
         "wtsMdd": "首封 09:39:06",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 8 家",
@@ -654,57 +303,58 @@
       }
     },
     {
-      "code": "002242",
-      "prefix": "sz002242",
-      "name": "九阳股份",
-      "sector": "小家电",
-      "boards": 3,
-      "boardLabel": "3板·龙虎榜合力",
-      "signalType": "HOT_MONEY",
-      "signalTag": "北向 + 机构 + 普通营业部·净买+3.72亿 · 黄金换手",
-      "price": 38.56,
-      "preClose": 35.05,
-      "open": 37.43,
-      "openGap": 6.79,
-      "chg": 10.01,
-      "volHand": 1080163,
-      "outerVol": 517613,
-      "innerVol": 562549,
-      "activeDiff": -44936,
+      "code": "600280",
+      "prefix": "sh600280",
+      "name": "中央商场",
+      "sector": "一般零售",
+      "boards": 1,
+      "boardLabel": "1板·主线卡位",
+      "effBoards": 1.0,
+      "signalType": "HIGH_SEAL",
+      "signalTag": "一般零售主线·首封09:40:38·封成比28.3%·封流比1.60%",
+      "price": 2.82,
+      "preClose": 2.56,
+      "open": 2.52,
+      "openGap": -1.56,
+      "chg": 10.16,
+      "volHand": 653067,
+      "outerVol": 282343,
+      "innerVol": 370724,
+      "activeDiff": -88381,
       "deltaHands": 0,
-      "firstSeal": "09:45:21",
-      "brokenCount": 7,
-      "sealYi": 2.74,
-      "amountYi": 41.09,
-      "sealRatio": 6.7,
-      "sealFlowRatio": 0.93,
-      "sealMvRatio": 0.93,
-      "circMv": 293.74,
-      "turnover": 14.18,
-      "volRatio": 0.87,
-      "limitUp": 38.56,
-      "limitDown": 31.55,
-      "quoteTime": "20261125161430",
+      "firstSeal": "09:40:38",
+      "brokenCount": 1,
+      "sealYi": 0.51,
+      "amountYi": 1.8,
+      "sealRatio": 28.3,
+      "sealFlowRatio": 1.6,
+      "sealMvRatio": 1.6,
+      "circMv": 31.82,
+      "turnover": 5.79,
+      "volRatio": 1.33,
+      "limitUp": 2.82,
+      "limitDown": 2.3,
+      "quoteTime": "20261125161442",
       "bids": [
         [
-          38.56,
-          71130
+          2.82,
+          182331
         ],
         [
-          38.55,
-          283
+          2.81,
+          867
         ],
         [
-          38.54,
-          97
+          2.8,
+          395
         ],
         [
-          38.53,
-          12
+          2.79,
+          165
         ],
         [
-          38.52,
-          8
+          2.78,
+          462
         ]
       ],
       "asks": [
@@ -729,226 +379,243 @@
           0
         ]
       ],
-      "lhbSummary": "龙虎榜净买 +3.72亿 (占成交 +7.1%)",
+      "lhbSummary": "龙虎榜净买 +0.55亿 (占成交 +30.8%)",
       "lhbSeats": [
         {
           "side": "买1",
-          "tag": "北向",
-          "dept": "深股通专用 (买44229万 / 卖22316万)",
-          "net": "+21914万"
+          "tag": "普通营业部",
+          "dept": "开源西安太华路 (买1937万 / 卖0万)",
+          "net": "+1937万"
         },
         {
           "side": "买2",
-          "tag": "北向",
-          "dept": "深股通专用 (买31387万 / 卖21740万)",
-          "net": "+9647万"
+          "tag": "游资(陈小群)",
+          "dept": "中国银河大连黄河路 (买1849万 / 卖0万)",
+          "net": "+1849万"
         },
         {
           "side": "买3",
-          "tag": "机构",
-          "dept": "机构专用 (买13973万 / 卖3992万)",
-          "net": "+9980万"
+          "tag": "普通营业部",
+          "dept": "国泰海通东莞总部一路 (买1768万 / 卖0万)",
+          "net": "+1768万"
         },
         {
           "side": "买4",
-          "tag": "机构",
-          "dept": "机构专用 (买12508万 / 卖8049万)",
-          "net": "+4459万"
+          "tag": "普通营业部",
+          "dept": "华鑫证券上海徐汇区瑞平路 (买918万 / 卖0万)",
+          "net": "+918万"
         },
         {
           "side": "买5",
           "tag": "普通营业部",
-          "dept": "国泰海通上海松江区中山东路 (买12418万 / 卖16万)",
-          "net": "+12402万"
+          "dept": "东方常熟李闸路 (买587万 / 卖0万)",
+          "net": "+587万"
         },
         {
           "side": "卖1",
-          "tag": "游资(章盟主)",
-          "dept": "国泰海通上海长宁区江苏路 (买4328万 / 卖13561万)",
-          "net": "-9233万"
+          "tag": "普通营业部",
+          "dept": "高盛(中国)证券上海浦东新区世纪大道 (买0万 / 卖402万)",
+          "net": "-402万"
         },
         {
           "side": "卖2",
-          "tag": "游资(章盟主)",
-          "dept": "国泰海通上海长宁区江苏路 (买4080万 / 卖13443万)",
-          "net": "-9363万"
+          "tag": "量化(中信上海)",
+          "dept": "中信上海分公司 (买0万 / 卖314万)",
+          "net": "-314万"
         },
         {
           "side": "卖3",
           "tag": "普通营业部",
-          "dept": "国泰海通北京安贞门 (买4374万 / 卖12046万)",
-          "net": "-7672万"
+          "dept": "兴业昆山长江中路 (买0万 / 卖311万)",
+          "net": "-311万"
+        },
+        {
+          "side": "卖4",
+          "tag": "散户(拉萨天团/东财)",
+          "dept": "东方财富拉萨金融城南环路 (买0万 / 卖248万)",
+          "net": "-248万"
+        },
+        {
+          "side": "卖5",
+          "tag": "量化/外资(摩根大通银城中路)",
+          "dept": "摩根大通证券(中国)有限公司上海银城中路 (买0万 / 卖239万)",
+          "net": "-239万"
         }
       ],
       "scoreParts": {
-        "board": 66.0,
-        "sealRatio": 5.4,
-        "sealFlow": 7.4,
-        "sector": 0.0,
+        "board": 22.0,
+        "sealRatio": 22.6,
+        "sealFlow": 12.8,
+        "sector": 15.0,
         "early": 0.0,
         "lhb": 20.0,
-        "turnover": 15.0,
+        "turnover": 0.0,
         "quantPenalty": 0.0,
-        "brokenPenalty": -31.5
+        "brokenPenalty": -4.5
       },
       "backtest": {
-        "wtsRet": "量化评分 82.3",
-        "wtsMdd": "首封 09:45:21",
-        "wtsSharpe": "3连板",
-        "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 2.74亿",
-        "boRet": "封成比 6.7% / 封流比 0.93%",
-        "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +37195万 (占总成交 +7.1%)，席位：北向 + 机构 + 普通营业部"
+        "wtsRet": "量化评分 87.9",
+        "wtsMdd": "首封 09:40:38",
+        "wtsSharpe": "1连板",
+        "wtsWin": "板块涨停 4 家",
+        "mrRet": "封单 0.51亿",
+        "boRet": "封成比 28.3% / 封流比 1.60%",
+        "note": "维度2[主线高封成比卡位]：一般零售板块(4家涨停)前排身位，封单0.51亿/封成比28.3%/封流比1.60%"
       }
     },
     {
-      "code": "600410",
-      "prefix": "sh600410",
-      "name": "华胜天成",
-      "sector": "龙虎榜主力",
-      "boards": 0,
-      "boardLabel": "1板·龙虎榜合力",
+      "code": "002651",
+      "prefix": "sz002651",
+      "name": "利君股份",
+      "sector": "航空装备",
+      "boards": 2,
+      "boardLabel": "2板·龙虎榜合力",
+      "effBoards": 2.0,
       "signalType": "HOT_MONEY",
-      "signalTag": "北向 + 普通营业部 + 散户(·净买+1.24亿",
-      "price": 17.92,
-      "preClose": 17.17,
-      "open": 17.16,
-      "openGap": -0.06,
-      "chg": 4.37,
-      "volHand": 3435560,
-      "outerVol": 1711834,
-      "innerVol": 1723726,
-      "activeDiff": -11892,
+      "signalTag": "游资(方新侠关联) + 普通营业·净买+1.00亿 · 黄金换手",
+      "price": 7.9,
+      "preClose": 7.18,
+      "open": 7.84,
+      "openGap": 9.19,
+      "chg": 10.03,
+      "volHand": 475154,
+      "outerVol": 78740,
+      "innerVol": 396413,
+      "activeDiff": -317673,
       "deltaHands": 0,
-      "firstSeal": "龙虎榜净买第1梯队",
-      "brokenCount": 0,
-      "sealYi": 0.0,
-      "amountYi": 60.33,
-      "sealRatio": 0.0,
-      "sealFlowRatio": 0.0,
-      "sealMvRatio": 0.0,
-      "circMv": 196.49,
-      "turnover": 31.33,
-      "volRatio": 1.13,
-      "limitUp": 18.89,
-      "limitDown": 15.45,
-      "quoteTime": "20261125161441",
+      "firstSeal": "09:30:00",
+      "brokenCount": 2,
+      "sealYi": 0.28,
+      "amountYi": 3.75,
+      "sealRatio": 7.5,
+      "sealFlowRatio": 0.63,
+      "sealMvRatio": 0.63,
+      "circMv": 44.67,
+      "turnover": 8.4,
+      "volRatio": 4.04,
+      "limitUp": 7.9,
+      "limitDown": 6.46,
+      "quoteTime": "20261125161430",
       "bids": [
         [
-          17.92,
-          3044
+          7.9,
+          35223
         ],
         [
-          17.91,
-          209
+          7.89,
+          8032
         ],
         [
-          17.9,
-          1013
+          7.88,
+          57
         ],
         [
-          17.89,
-          501
+          7.87,
+          90
         ],
         [
-          17.88,
-          593
+          7.86,
+          367
         ]
       ],
       "asks": [
         [
-          17.93,
-          9758
+          0.0,
+          0
         ],
         [
-          17.94,
-          10921
+          0.0,
+          0
         ],
         [
-          17.95,
-          1360
+          0.0,
+          0
         ],
         [
-          17.96,
-          542
+          0.0,
+          0
         ],
         [
-          17.97,
-          966
+          0.0,
+          0
         ]
       ],
-      "lhbSummary": "龙虎榜净买 +1.24亿 (占成交 +2.1%)",
+      "lhbSummary": "龙虎榜净买 +1.00亿 (占成交 +17.2%)",
       "lhbSeats": [
         {
           "side": "买1",
-          "tag": "北向",
-          "dept": "沪股通专用 (买17045万 / 卖0万)",
-          "net": "+17045万"
+          "tag": "游资(方新侠关联)",
+          "dept": "开源西安西大街 (买4362万 / 卖137万)",
+          "net": "+4225万"
         },
         {
           "side": "买2",
           "tag": "普通营业部",
-          "dept": "长江台州市府大道 (买9014万 / 卖0万)",
-          "net": "+9014万"
+          "dept": "国新北京分公司 (买3971万 / 卖0万)",
+          "net": "+3971万"
         },
         {
           "side": "买3",
           "tag": "普通营业部",
-          "dept": "中信建投杭州庆春路 (买7144万 / 卖0万)",
-          "net": "+7144万"
+          "dept": "国新北京亦庄 (买1896万 / 卖0万)",
+          "net": "+1895万"
         },
         {
           "side": "买4",
-          "tag": "散户(拉萨天团)",
-          "dept": "东方财富拉萨金融城南环路 (买6696万 / 卖0万)",
-          "net": "+6696万"
+          "tag": "普通营业部",
+          "dept": "华鑫证券上海徐汇区瑞平路 (买1700万 / 卖935万)",
+          "net": "+765万"
         },
         {
           "side": "买5",
           "tag": "普通营业部",
-          "dept": "国信浙江互联网分公司 (买6193万 / 卖0万)",
-          "net": "+6193万"
+          "dept": "平安浙江分公司 (买862万 / 卖283万)",
+          "net": "+579万"
         },
         {
           "side": "卖1",
           "tag": "北向",
-          "dept": "沪股通专用 (买0万 / 卖12745万)",
-          "net": "-12745万"
+          "dept": "深股通专用 (买640万 / 卖1439万)",
+          "net": "-799万"
         },
         {
           "side": "卖2",
-          "tag": "普通营业部",
-          "dept": "摩根大通证券(中国)有限公司上海银城中路 (买0万 / 卖5793万)",
-          "net": "-5793万"
+          "tag": "机构",
+          "dept": "机构专用 (买444万 / 卖918万)",
+          "net": "-474万"
         },
         {
           "side": "卖3",
-          "tag": "普通营业部",
-          "dept": "国信浙江互联网分公司 (买0万 / 卖5132万)",
-          "net": "-5132万"
+          "tag": "机构",
+          "dept": "机构专用 (买404万 / 卖508万)",
+          "net": "-104万"
         },
         {
           "side": "卖4",
           "tag": "普通营业部",
-          "dept": "国泰海通成都龙腾东路 (买0万 / 卖5087万)",
-          "net": "-5087万"
-        },
-        {
-          "side": "卖5",
-          "tag": "普通营业部",
-          "dept": "高盛(中国)证券上海浦东新区世纪大道 (买0万 / 卖4934万)",
-          "net": "-4934万"
+          "dept": "国新长沙韶山路 (买432万 / 卖475万)",
+          "net": "-43万"
         }
       ],
-      "scoreParts": {},
+      "scoreParts": {
+        "board": 44.0,
+        "sealRatio": 6.0,
+        "sealFlow": 5.0,
+        "sector": 0.0,
+        "early": 12.0,
+        "lhb": 20.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -9.0
+      },
       "backtest": {
-        "wtsRet": "量化评分 90.0",
-        "wtsMdd": "首封 龙虎榜净买第1梯队",
-        "wtsSharpe": "0连板",
+        "wtsRet": "量化评分 93.0",
+        "wtsMdd": "首封 09:30:00",
+        "wtsSharpe": "2连板",
         "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 1.24亿",
-        "boRet": "封成比 2.1% / 封流比 0.00%",
-        "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +12400万 (占总成交 +2.1%)，席位：北向 + 普通营业部 + 散户(拉萨天团)"
+        "mrRet": "封单 0.28亿",
+        "boRet": "封成比 7.5% / 封流比 0.63%",
+        "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +10017万 (占总成交 +17.2%)，席位：游资(方新侠关联) + 普通营业部"
       }
     },
     {
@@ -957,9 +624,10 @@
       "name": "汇洲智能",
       "sector": "通用设备",
       "boards": 3,
-      "boardLabel": "3连板精选",
-      "signalType": "WEAK_TO_STRONG",
-      "signalTag": "首封09:25:00·封单0.70亿·封流比0.98% · 黄金换手",
+      "boardLabel": "3板·龙虎榜合力",
+      "effBoards": 3.0,
+      "signalType": "HOT_MONEY",
+      "signalTag": "游资(陈小群) + 普通营业部·净买+0.94亿 · 黄金换手",
       "price": 3.59,
       "preClose": 3.26,
       "open": 3.59,
@@ -1048,28 +716,46 @@
           "net": "+2916万"
         },
         {
+          "side": "买4",
+          "tag": "普通营业部",
+          "dept": "中国银河庄河世纪大街 (买2872万 / 卖0万)",
+          "net": "+2872万"
+        },
+        {
+          "side": "买5",
+          "tag": "普通营业部",
+          "dept": "华泰北京东三环北路 (买2354万 / 卖3万)",
+          "net": "+2351万"
+        },
+        {
           "side": "卖1",
           "tag": "普通营业部",
           "dept": "中信东阳吴宁西路 (买3万 / 卖2183万)",
-          "net": "-2180万"
+          "net": "-2179万"
         },
         {
           "side": "卖2",
-          "tag": "普通营业部",
-          "dept": "华西成都高升桥路 (买2万 / 卖1403万)",
-          "net": "-1401万"
-        },
-        {
-          "side": "卖3",
           "tag": "普通营业部",
           "dept": "华西成都高升桥路 (买2万 / 卖1402万)",
           "net": "-1400万"
         },
         {
+          "side": "卖3",
+          "tag": "普通营业部",
+          "dept": "平安重庆分公司 (买42万 / 卖1254万)",
+          "net": "-1212万"
+        },
+        {
           "side": "卖4",
           "tag": "普通营业部",
-          "dept": "平安重庆分公司 (买45万 / 卖1325万)",
-          "net": "-1280万"
+          "dept": "国泰海通东莞总部一路 (买6万 / 卖1149万)",
+          "net": "-1143万"
+        },
+        {
+          "side": "卖5",
+          "tag": "普通营业部",
+          "dept": "申万宏源证券有限公司成都北一环路 (买7万 / 卖1101万)",
+          "net": "-1094万"
         }
       ],
       "scoreParts": {
@@ -1077,74 +763,75 @@
         "sealRatio": 6.9,
         "sealFlow": 7.8,
         "sector": 8.0,
-        "early": 0.0,
+        "early": 12.0,
         "lhb": 20.0,
         "turnover": 15.0,
         "quantPenalty": 0.0,
         "brokenPenalty": 0.0
       },
       "backtest": {
-        "wtsRet": "量化评分 123.7",
+        "wtsRet": "量化评分 135.7",
         "wtsMdd": "首封 09:25:00",
         "wtsSharpe": "3连板",
         "wtsWin": "板块涨停 2 家",
         "mrRet": "封单 0.70亿",
         "boRet": "封成比 8.6% / 封流比 0.98%",
-        "note": "维度2[综合量化高分]：连板梯队、封成比、封流比与换手率综合评分前列"
+        "note": "维度3[龙虎榜游资/机构合力]：龙虎榜净买入 +9447万 (占总成交 +11.7%)，席位：游资(陈小群) + 普通营业部"
       }
     },
     {
-      "code": "603926",
-      "prefix": "sh603926",
-      "name": "铁流股份",
-      "sector": "汽车零部",
+      "code": "300703",
+      "prefix": "sz300703",
+      "name": "创源股份",
+      "sector": "文娱用品",
       "boards": 3,
-      "boardLabel": "3板·强分歧回封",
-      "signalType": "BROKEN_WARN",
-      "signalTag": "盘中炸板12次·换手11.4% · 黄金换手",
-      "price": 17.97,
-      "preClose": 16.34,
-      "open": 17.76,
-      "openGap": 8.69,
-      "chg": 9.98,
-      "volHand": 263835,
-      "outerVol": 89424,
-      "innerVol": 174412,
-      "activeDiff": -84988,
+      "boardLabel": "3连板精选",
+      "effBoards": 5.4,
+      "signalType": "WEAK_TO_STRONG",
+      "signalTag": "首封10:15:03·封单0.68亿·封流比2.25% · 黄金换手",
+      "price": 17.8,
+      "preClose": 14.83,
+      "open": 15.73,
+      "openGap": 6.07,
+      "chg": 20.03,
+      "volHand": 413359,
+      "outerVol": 206994,
+      "innerVol": 206365,
+      "activeDiff": 629,
       "deltaHands": 0,
-      "firstSeal": "09:35:44",
-      "brokenCount": 12,
-      "sealYi": 0.03,
-      "amountYi": 4.7,
-      "sealRatio": 0.6,
-      "sealFlowRatio": 0.07,
-      "sealMvRatio": 0.07,
-      "circMv": 41.48,
-      "turnover": 11.43,
-      "volRatio": 3.75,
-      "limitUp": 17.97,
-      "limitDown": 14.71,
-      "quoteTime": "20261125161453",
+      "firstSeal": "10:15:03",
+      "brokenCount": 1,
+      "sealYi": 0.68,
+      "amountYi": 6.95,
+      "sealRatio": 9.8,
+      "sealFlowRatio": 2.25,
+      "sealMvRatio": 2.25,
+      "circMv": 30.2,
+      "turnover": 24.36,
+      "volRatio": 4.1,
+      "limitUp": 17.8,
+      "limitDown": 11.86,
+      "quoteTime": "20261125161445",
       "bids": [
         [
-          17.97,
-          1584
+          17.8,
+          37998
         ],
         [
-          17.96,
-          331
+          17.79,
+          950
         ],
         [
-          17.95,
-          35
+          17.78,
+          13
         ],
         [
-          17.94,
-          15
+          17.72,
+          1
         ],
         [
-          17.93,
-          15
+          17.71,
+          3
         ]
       ],
       "asks": [
@@ -1169,7 +856,162 @@
           0
         ]
       ],
-      "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 12 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 28.0 分",
+      "lhbSummary": "龙虎榜净买 +0.49亿 (占成交 +7.0%)",
+      "lhbSeats": [
+        {
+          "side": "买1",
+          "tag": "普通营业部",
+          "dept": "浙商杭州五星路 (买5390万 / 卖0万)",
+          "net": "+5390万"
+        },
+        {
+          "side": "买2",
+          "tag": "游资(章盟主)",
+          "dept": "国泰海通上海长宁区江苏路 (买3106万 / 卖183万)",
+          "net": "+2923万"
+        },
+        {
+          "side": "买3",
+          "tag": "北向",
+          "dept": "深股通专用 (买3081万 / 卖3123万)",
+          "net": "-42万"
+        },
+        {
+          "side": "买4",
+          "tag": "普通营业部",
+          "dept": "华鑫证券上海徐汇区瑞平路 (买1556万 / 卖76万)",
+          "net": "+1480万"
+        },
+        {
+          "side": "买5",
+          "tag": "普通营业部",
+          "dept": "华泰合肥习友路 (买989万 / 卖9万)",
+          "net": "+980万"
+        },
+        {
+          "side": "卖1",
+          "tag": "游资(方新侠关联)",
+          "dept": "开源西安西大街 (买2万 / 卖3054万)",
+          "net": "-3052万"
+        },
+        {
+          "side": "卖2",
+          "tag": "机构",
+          "dept": "机构专用 (买0万 / 卖1801万)",
+          "net": "-1801万"
+        },
+        {
+          "side": "卖3",
+          "tag": "机构",
+          "dept": "机构专用 (买817万 / 卖1107万)",
+          "net": "-289万"
+        },
+        {
+          "side": "卖4",
+          "tag": "普通营业部",
+          "dept": "华创证券北京西直门 (买86万 / 卖808万)",
+          "net": "-722万"
+        }
+      ],
+      "scoreParts": {
+        "board": 118.8,
+        "sealRatio": 7.8,
+        "sealFlow": 18.0,
+        "sector": 0.0,
+        "early": 0.0,
+        "lhb": 20.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
+      "backtest": {
+        "wtsRet": "量化评分 175.1",
+        "wtsMdd": "首封 10:15:03",
+        "wtsSharpe": "3连板",
+        "wtsWin": "板块涨停 1 家",
+        "mrRet": "封单 0.68亿",
+        "boRet": "封成比 9.8% / 封流比 2.25%",
+        "note": "维度2[综合量化高分]：连板梯队、封成比、封流比与换手率综合评分前列"
+      }
+    },
+    {
+      "code": "603926",
+      "prefix": "sh603926",
+      "name": "铁流股份",
+      "sector": "汽车零部",
+      "boards": 3,
+      "boardLabel": "3板·强分歧回封",
+      "effBoards": 3.0,
+      "signalType": "BROKEN_WARN",
+      "signalTag": "盘中炸板12次·换手11.4% · 黄金换手",
+      "price": 17.97,
+      "preClose": 16.34,
+      "open": 17.76,
+      "openGap": 8.69,
+      "chg": 9.98,
+      "volHand": 263835,
+      "outerVol": 89424,
+      "innerVol": 174412,
+      "activeDiff": -84988,
+      "deltaHands": 0,
+      "firstSeal": "09:35:44",
+      "brokenCount": 12,
+      "sealYi": 0.0,
+      "amountYi": 4.7,
+      "sealRatio": 0.0,
+      "sealFlowRatio": 0.0,
+      "sealMvRatio": 0.0,
+      "circMv": 41.48,
+      "turnover": 11.43,
+      "volRatio": 3.75,
+      "limitUp": 17.97,
+      "limitDown": 14.71,
+      "quoteTime": "20261125161500",
+      "bids": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 12 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 40.0 分",
       "lhbSeats": [
         {
           "side": "选股",
@@ -1189,14 +1031,14 @@
         "sealRatio": 0.5,
         "sealFlow": 0.6,
         "sector": 0.0,
-        "early": 0.0,
+        "early": 12.0,
         "lhb": 0.0,
         "turnover": 15.0,
         "quantPenalty": 0.0,
         "brokenPenalty": -54.0
       },
       "backtest": {
-        "wtsRet": "量化评分 28.0",
+        "wtsRet": "量化评分 40.0",
         "wtsMdd": "首封 09:35:44",
         "wtsSharpe": "3连板",
         "wtsWin": "板块涨停 2 家",
@@ -1212,6 +1054,7 @@
       "sector": "电机Ⅱ",
       "boards": 0,
       "boardLabel": "炸板池·风控/反包",
+      "effBoards": 0,
       "signalType": "BROKEN_WARN",
       "signalTag": "首触09:32:09·炸板1次·成交9.7亿",
       "price": 9.13,

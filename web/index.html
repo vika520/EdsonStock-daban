@@ -224,6 +224,12 @@
             </table>
           </div>
 
+          <!-- 烂板高危隔离区：不占 Top 10 进攻席位，仅供风控观察 -->
+          <div id="riskAnchorsBox" class="hidden mt-2.5 p-2 rounded-lg border border-purple-500/30 bg-purple-500/5">
+            <div class="text-[10px] font-semibold text-purple-300 mb-1">⚠ 烂板高危隔离区（炸板≥3 次且封成比<5%，已移出 Top 10，仅作风控观察）</div>
+            <div id="riskAnchorsBody" class="flex flex-wrap gap-1.5 text-[10px]"></div>
+          </div>
+
           <!-- 底部 10 日情绪周期趋势图 -->
           <div class="pt-3 mt-2 border-t border-slate-800">
             <div class="flex items-center justify-between mb-1">
@@ -2616,6 +2622,7 @@
         const stClass = b.stage === "主升期" ? "bg-red-500/15 text-red-300 border-red-500/30"
           : b.stage === "启动期" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
           : b.stage === "过热预警" ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+          : b.stage === "抗跌防守" ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
           : "bg-slate-700/40 text-slate-400 border-slate-600/40";
         const rsClass = b.rs20 >= 0 ? "text-red-400" : "text-emerald-400";
         return "<tr class='hover:bg-slate-800/60 transition'>" +
@@ -2793,6 +2800,19 @@
             const modeLabel = data.mode === 'auction' ? '9:25竞价重排'
               : String(data.mode || '').startsWith('intraday_') ? '早盘卡位替补' : '盘后四维选股';
             document.getElementById("asofBadge").textContent = `选股更新: ${data.tradeDate || ''} (${modeLabel}${gen ? ' · ' + gen : ''})`;
+            // 烂板高危隔离区（后端 riskAnchors，向后兼容：字段缺失时隐藏）
+            const raBox = document.getElementById("riskAnchorsBox");
+            const raBody = document.getElementById("riskAnchorsBody");
+            const ra = Array.isArray(data.riskAnchors) ? data.riskAnchors : [];
+            if (raBox && raBody) {
+              if (ra.length) {
+                raBox.classList.remove("hidden");
+                raBody.innerHTML = ra.map(a => `<span class="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-200 border border-slate-700">${escapeHtml(a.name || a.code)} <span class="mono text-slate-400">${escapeHtml(a.code)}</span> · ${escapeHtml(a.riskTag || '')}</span>`).join("");
+              } else {
+                raBox.classList.add("hidden");
+                raBody.innerHTML = "";
+              }
+            }
             const selStock = document.getElementById("selWebhookStock");
             if (selStock) {
               selStock.innerHTML = VERIFIED_STOCKS.map(st => `<option value="${escapeHtml(st.code)}">${escapeHtml(st.code)} ${escapeHtml(st.name)} (${escapeHtml(st.boardLabel)})</option>`).join("");

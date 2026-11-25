@@ -109,11 +109,28 @@ def _row_amount_est_yi(r):
     return round(vol * 100.0 * ((o + c + h + l) / 4.0) / 1e8, 3)
 
 
+def _latest_complete_bars(rows, today):
+    """返回「最新已完成交易日」及之前的 K 线切片。
+
+    2026-11-25 审计修复（跨日时序错位）：原逻辑 `r[0] < today` 永远排除当日行——
+    盘后运行时 11-25 当日 K 线已存在（阳线涨停），却被丢弃，拿 11-24 的阴线当「最新」，
+    结果把「今天已反包涨停」的票标成「今日首阴回踩」推荐明天低吸。
+    正确逻辑：当日行存在 → 当日就是最新完成日；当日行不存在（盘中/数据未插入）→ 退回最后一行。
+    另外两条纪律：① 候选池是「今日涨停」的票，今天涨停就不可能是首阴，必须在调用处排除；
+                 ② 首阴回踩买点是「T 日阴线 → T+1 低吸」，盘后选股 T 日就是今天。
+    """
+    dated = [(str(r[0]), r) for r in rows]
+    has_today = any(d == today for d, _ in dated)
+    if has_today:
+        return [r for d, r in dated if d <= today]
+    return list(rows)
+
+
 def fetch_prev_day_amount_est_yi(code_raw, today=None):
     """昨日(T-1)全天成交额估算。
 
-    按日期锚定而非 rows[-2]：腾讯日K的当日行插入时间不稳定（盘后 19 点也可能还没插入），
-    取 rows[-2] 可能拿到前天。这里严格取「日期 < today」的最后一行。
+    取「严格早于今日」的最后一行。注意：这个函数的语义就是 T-1，所以这里用 < today 是对的
+    （竞价模式算量比要拿昨日全天成交额，今天的成交额还没走完）。
     """
     today = today or now_beijing().strftime("%Y-%m-%d")
     rows = fetch_kline_rows(code_raw, 6)
@@ -146,8 +163,7 @@ def fetch_first_yin_ma5_candidates(codes, limit=2, today=None):
         rows = fetch_kline_rows(pure, 10)
         if len(rows) < 6:
             return None
-        # 日期锚定：只用 today 之前的数据（盘后 today 当日行可能已插入，也可能没有，都按 < today 之后的最后一行作为「最新」）
-        hist = [r for r in rows if str(r[0]) < today] or rows
+        hist = _latest_complete_bars(rows, today)
         if len(hist) < 6:
             return None
         prev, last = hist[-2], hist[-1]
@@ -195,14 +211,28 @@ def _norm_date(s):
     return "%s-%s-%s" % (s[:4], s[4:6], s[6:8]) if len(s) == 8 else str(s or "")
 
 
+def _is_single_day_explanation(exp):
+    """判断席位记录的上榜原因是否为「单日榜」。
+
+    东财席位接口同日同时返回一日榜与三日榜（如九阳 11-25：单日净买 6332 万、三日累计 37195 万），
+    混在一起会让 buy_total 翻倍、同一席位重复出现。单日榜的原因文案不含「连续三个交易日」。
+    """
+    e = str(exp or "")
+    return "连续三个" not in e and "3个" not in e and "三日" not in e
+
+
 def _fetch_lhb_rows(base, code, tdate, rpt, sort_col):
-    """拉取单只股票单侧（买/卖）席位明细，取满前 5 席。"""
+    """拉取单只股票单侧（买/卖）席位明细，取满前 5 席。
+
+    2026-11-25 审计修复：按 EXPLANATION 区分一日榜/三日榜——优先只取单日榜；
+    若该票当日无单日榜（仅三日榜上榜），才退回用三日榜。
+    """
     p_seat = {
         "reportName": rpt,
-        "columns": "OPERATEDEPT_NAME,BUY,SELL,NET",
+        "columns": "OPERATEDEPT_NAME,BUY,SELL,NET,EXPLANATION",
         "filter": '(SECURITY_CODE="%s")(TRADE_DATE=\'%s\')' % (code, tdate),
         "pageNumber": "1",
-        "pageSize": "5",
+        "pageSize": "10",
         "sortTypes": "-1",
         "sortColumns": sort_col,
         "source": "WEB",
@@ -210,9 +240,11 @@ def _fetch_lhb_rows(base, code, tdate, rpt, sort_col):
     }
     try:
         s_raw = json.loads(http_get(base + "?" + urllib.parse.urlencode(p_seat), use_curl=True))
-        return ((s_raw.get("result") or {}).get("data")) or []
+        rows = ((s_raw.get("result") or {}).get("data")) or []
     except Exception:
         return []
+    single = [r for r in rows if _is_single_day_explanation(r.get("EXPLANATION"))]
+    return (single or rows)[:5]
 
 
 def fetch_billboard_map(extra_codes=None, qdate=None):
@@ -256,8 +288,14 @@ def fetch_billboard_map(extra_codes=None, qdate=None):
         if tdate != latest_date:
             continue
         code = str(r.get("SECURITY_CODE") or "")
-        if not code or code in bmap or "ST" in str(r.get("SECURITY_NAME_ABBR", "")):
+        if not code or "ST" in str(r.get("SECURITY_NAME_ABBR", "")):
             continue
+        # 一日榜优先：同一票同日可能同时有单日榜与三日榜两条记录，三日累计净买往往是单日的数倍
+        # （九阳 11-25：单日 6332 万 vs 三日 37195 万）。已有单日榜则不被三日榜覆盖；反之用单日榜替换。
+        is_single = _is_single_day_explanation(r.get("EXPLANATION"))
+        if code in bmap:
+            if not (is_single and not bmap[code].get("_single")):
+                continue
         net_wan = float(r.get("BILLBOARD_NET_AMT") or 0) / 1e4
         tot_wan = float(r.get("ACCUM_AMOUNT") or 1) / 1e4
         net_ratio = round(net_wan / max(1.0, tot_wan) * 100.0, 2)
@@ -270,6 +308,7 @@ def fetch_billboard_map(extra_codes=None, qdate=None):
             "netRatio": net_ratio,
             "amountWan": round(tot_wan, 0),
             "reason": r.get("EXPLANATION") or "",
+            "_single": is_single,
             "seats": [],
         }
 
@@ -458,8 +497,14 @@ def generate_top10_picks(date_str=None, mode="post"):
     sent_zt = _num(sentiment_snap.get("zt"), -1)
     sent_dt = _num(sentiment_snap.get("dt"), -1)
     data_ready = zt_cnt > 0
-    cold = (data_ready and zt_cnt < 35) or dt_cnt > 15 or (sent_zt >= 0 and sent_zt < 35) or sent_dt > 15
-    hot = (zt_cnt >= 80 and zb_rate < 25 and dt_cnt <= 10) or (sent_zt >= 80 and sent_dt >= 0 and sent_dt <= 10 and zb_rate < 25)
+    # 2026-11-25 审计修复：实时三池可用时以实时数据为准，sentiment 快照（T-1 盘后）仅作盘前空池兜底。
+    # 原先快照的 sent_dt>15 与实时的 dt_cnt=0（跌停池参数 bug）同时生效，导致 cold=True 但 dtCount=0 自相矛盾。
+    if data_ready:
+        cold = zt_cnt < 35 or dt_cnt > 15
+        hot = zt_cnt >= 80 and zb_rate < 25 and dt_cnt <= 10
+    else:
+        cold = (sent_zt >= 0 and sent_zt < 35) or sent_dt > 15
+        hot = sent_zt >= 80 and 0 <= sent_dt <= 10 and zb_rate < 25
     if hot:
         phase = "高潮/主升加速期"
     elif cold:
@@ -501,6 +546,11 @@ def generate_top10_picks(date_str=None, mode="post"):
         circ_mv = _num(q.get("circMv"))
         hs = _num(q.get("turnover"), _num(x.get("hs")))
         seal_flow_ratio = round((fund_yi / max(0.01, circ_mv)) * 100.0, 2) if circ_mv > 0 else 0.0
+        # 分板制评分（2026-11-25 策略升级）：创业板/科创板 20cm 一个板的溢价约等于主板 2 板，
+        # 原先 10cm/20cm/30cm 同一套 lbc*22 加分，对双创系统性低估。按板别折算「等效连板数」。
+        limit_pct = _limit_pct_for(code)
+        board_mult = 1.0 if limit_pct <= 0.10 else (1.8 if limit_pct <= 0.20 else 2.4)
+        eff_boards = lbc * board_mult
         seal_bonus = min(40.0, seal_ratio * 0.8)
         flow_bonus = min(40.0, seal_flow_ratio * 8.0)
         if 8.0 <= hs <= 28.0:
@@ -512,19 +562,24 @@ def generate_top10_picks(date_str=None, mode="post"):
         else:
             turn_bonus, turn_tag = 0.0, ""
         sector_bonus = 15.0 if hy in top_sectors[:3] else (8.0 if hy in top_sectors else 0.0)
-        early_bonus = 12.0 if str(x.get("fbt") or "150000") <= "094000" else 0.0
+        # 2026-11-25 审计修复：东财 fbt 是 5 位整数 92500（=09:25:00），str() 后为 '92500'，
+        # 与 '094000' 逐位字符串比较时 '9' > '0' 恒为 False，早盘加分从未触发过。必须 zfill(6) 补零。
+        early_bonus = 12.0 if str(x.get("fbt") or "150000").zfill(6) <= "094000" else 0.0
         lhb_bonus = 20.0 if code in bmap and bmap[code]["netWan"] > 3000 else 0.0
         quant_penalty = -30.0 if (bmap.get(code) or {}).get("quantT") else 0.0
-        score = (lbc * 22.0 + seal_bonus + flow_bonus + sector_bonus + early_bonus +
+        score = (eff_boards * 22.0 + seal_bonus + flow_bonus + sector_bonus + early_bonus +
                  lhb_bonus + turn_bonus + quant_penalty - zbc * 4.5)
+        # 烂板标记：炸板 >=3 次且封成比 <5% —— 不占 Top 10 进攻席位，隔离到 riskAnchors 观察区
+        is_rotten_board = zbc >= 3 and seal_ratio < 5.0
         scored_zt.append({
             "raw": x, "code": code, "name": name, "sector": hy,
-            "boards": lbc, "brokenCount": zbc, "firstSeal": fbt,
+            "boards": lbc, "effBoards": round(eff_boards, 1), "brokenCount": zbc, "firstSeal": fbt,
             "sealYi": fund_yi, "amountYi": amo_yi, "sealRatio": seal_ratio,
             "sealFlowRatio": seal_flow_ratio, "circMv": circ_mv,
             "turnover": hs, "turnTag": turn_tag, "score": round(score, 1),
+            "rottenBoard": is_rotten_board,
             "scoreParts": {
-                "board": lbc * 22.0, "sealRatio": round(seal_bonus, 1),
+                "board": round(eff_boards * 22.0, 1), "sealRatio": round(seal_bonus, 1),
                 "sealFlow": round(flow_bonus, 1), "sector": sector_bonus,
                 "early": early_bonus, "lhb": lhb_bonus, "turnover": turn_bonus,
                 "quantPenalty": quant_penalty, "brokenPenalty": -zbc * 4.5,
@@ -536,10 +591,22 @@ def generate_top10_picks(date_str=None, mode="post"):
 
     picked = []
     picked_codes = set()
+    risk_anchors = []   # 烂板/高危隔离区：不占进攻席位，仅供风控观察
 
     def add_candidate(item, role_label, sig_type, sig_tag, rule_reason):
         c = item["code"]
         if c in picked_codes or len(picked) >= 10:
+            return False
+        # 烂板高危隔离（2026-11-25 策略升级）：炸板>=3 且封成比<5% 的票不进 Top 10，
+        # 单独放进 riskAnchors。梯队 5 的「炸板池风控锚点」例外——它的定位就是风险观察。
+        if item.get("rottenBoard") and sig_type != "BROKEN_WARN":
+            if not any(a["code"] == c for a in risk_anchors):
+                risk_anchors.append({
+                    "code": c, "name": item.get("name") or c, "boards": item.get("boards", 0),
+                    "effBoards": item.get("effBoards") or item.get("boards", 0),   # 分板制等效连板数（20cm×1.8 / 30cm×2.4）
+                    "brokenCount": item.get("brokenCount", 0), "sealRatio": item.get("sealRatio", 0.0),
+                    "riskTag": "烂板高危(炸板%d次/封成比%.1f%%)" % (item.get("brokenCount", 0), item.get("sealRatio", 0.0)),
+                })
             return False
         picked_codes.add(c)
         lhb_info = bmap.get(c) or {}
@@ -563,6 +630,7 @@ def generate_top10_picks(date_str=None, mode="post"):
         picked.append({
             "code": c, "prefix": "", "name": item["name"], "sector": item["sector"],
             "boards": item["boards"], "boardLabel": role_label,
+            "effBoards": item.get("effBoards") or item["boards"],   # 分板制等效连板数（20cm×1.8 / 30cm×2.4）
             "signalType": sig_type, "signalTag": sig_tag_full,
             "price": 0, "preClose": 0, "open": 0, "openGap": 0, "chg": 0,
             "volHand": 0, "outerVol": 0, "innerVol": 0, "activeDiff": 0, "deltaHands": 0,
@@ -606,9 +674,16 @@ def generate_top10_picks(date_str=None, mode="post"):
 
     # 梯队1B：冰点/退潮期替代——首阴回踩 5 日线 + 1进2 首板
     if quotas["firstYin"] > 0:
+        # 候选必须是「昨日涨停、今日首阴」的票。2026-11-25 审计修复：
+        # 原兜底用 scored_zt（今日涨停池）——今天涨停的票不可能是首阴，日期锚定修复后会被
+        # 「最新 K 线为阴线」自动排除，但为避免无谓请求，这里直接排除今日涨停代码。
+        today_zt_codes = {x["code"] for x in scored_zt}
         universe = [str(c).zfill(6) for c in (sentiment_snap.get("ztCodes") or [])[:40]]
+        universe = [c for c in universe if c not in today_zt_codes]
         if not universe:
-            universe = [x["code"] for x in scored_zt[:40]]
+            # 无 T-1 快照时，用炸板池（昨日曾涨停今日走弱）作次级候选，而非今日涨停池
+            universe = [str(x.get("c") or "").zfill(6) for x in zb_pool[:30]]
+            universe = [c for c in universe if c not in today_zt_codes]
         yin_added = 0
         for fy in fetch_first_yin_ma5_candidates(universe, limit=quotas["firstYin"]):
             if yin_added >= quotas["firstYin"]:
@@ -626,9 +701,11 @@ def generate_top10_picks(date_str=None, mode="post"):
                 yin_added += 1
 
     # 梯队2：主线 1进2 / 2进3 高封成比卡位先锋（主升期扩至 5 席）
+    # 2026-11-25 审计修复：换手下限 2.5%→5.0%。特一药业换手 2.78% 被打「缩量一字」扣 20 分，
+    # 却仍按封流比排进第 4 席——缩量一字次日无换手基础，极易炸板。被标「缩量一字」的直接排除在卡位池外。
     mainline_kawi = sorted(
-        [x for x in scored_zt if 1 <= x["boards"] <= 3 and 2.5 <= x["turnover"] <= 38.0 and x["brokenCount"] <= 1
-         and not _is_bj(x["code"])],
+        [x for x in scored_zt if 1 <= x["boards"] <= 3 and 5.0 <= x["turnover"] <= 38.0 and x["brokenCount"] <= 1
+         and x.get("turnTag") != "缩量一字" and not _is_bj(x["code"])],
         key=lambda x: (-(1 if x["sector"] in top_sectors[:3] else 0), -x["boards"], -x["sealFlowRatio"])
     )
     main_added = 0
@@ -656,12 +733,33 @@ def generate_top10_picks(date_str=None, mode="post"):
         linfo = bmap[lc]
         if linfo["netWan"] <= 1500:
             continue
+        # 2026-11-25 审计修复：龙虎榜合力必须是「当日涨停」或「强势收盘」——
+        # 原先不在涨停池的票用硬编码默认值(boards=0/turnover=15/score=90)直接入池，
+        # 华胜天成(+4.37%、换手31%冲高回落)、光洋股份(跌1.26%)这类非涨停跟风股混进超短核心池。
+        # 现要求：当日涨停，或收盘涨幅 >= 7% 且上影线 <= 3%（排除冲高回落出货）。
+        chg = float(linfo.get("chg") or 0)
+        in_zt = lc in zt_by_code
+        if not in_zt:
+            if chg < 7.0:
+                continue
+            # 上影线检查：用当日 K 线（high - close）/ prev_close
+            try:
+                krows = fetch_kline_rows(lc, 3)
+                if krows:
+                    k = krows[-1]
+                    pc = _num(krows[-2][2]) if len(krows) >= 2 else _num(k[1])
+                    upper_shadow = (_num(k[3]) - _num(k[2])) / pc * 100.0 if pc > 0 else 99
+                    if upper_shadow > 3.0:
+                        continue
+            except Exception:
+                continue
         base_item = zt_by_code.get(lc) or {
             "code": lc, "name": linfo["name"], "sector": "龙虎榜主力",
-            "boards": 1 if linfo["chg"] >= 9.5 else 0, "brokenCount": 0,
+            "boards": 1 if chg >= 9.5 else 0, "brokenCount": 0,
             "firstSeal": "龙虎榜净买第1梯队", "sealYi": round(linfo["netWan"] / 10000.0, 2),
             "amountYi": 10.0, "sealRatio": linfo["netRatio"], "sealFlowRatio": 0.0,
-            "circMv": 0.0, "turnover": 15.0, "score": 90.0, "scoreParts": {}
+            "circMv": 0.0, "turnover": 15.0, "score": 90.0, "scoreParts": {},
+            "chg": chg,
         }
         seat_tags = " + ".join(list(dict.fromkeys([s["tag"] for s in linfo.get("seats", []) if s["side"].startswith("买")]))) or "主力游资"
         if add_candidate(
@@ -737,13 +835,29 @@ def generate_top10_picks(date_str=None, mode="post"):
             if not in_auction_window:
                 continue
             gap = _num(p.get("openGap"))
-            if 1.0 <= gap <= 7.5 and 5.0 <= ratio <= 18.0:
+            # 「主力真抢筹」三重过滤（2026-11-25 策略升级）：
+            # ① 竞价五档委比 > -20%：防止 9:25 匹配价虽高开、但卖一~卖五压着巨量抛单无承接的「竞价诱多出货」
+            bids = p.get("bids") or []
+            asks = p.get("asks") or []
+            bid_vol = sum(b[1] for b in bids if len(b) >= 2)
+            ask_vol = sum(a[1] for a in asks if len(a) >= 2)
+            bid_ask_ratio = round((bid_vol - ask_vol) / max(1, bid_vol + ask_vol) * 100.0, 1)
+            p["bidAskRatio"] = bid_ask_ratio
+            # ② 排除前一日放量天量烂板后缩量高开（ratio < 6%）的假弱转强：
+            #    brokenCount>=2 说明昨日反复炸板，若竞价量能再不足就是没人接力
+            prev_rots = _num(p.get("brokenCount"))
+            fake_reversal = prev_rots >= 2 and ratio < 6.0
+            if 1.0 <= gap <= 7.5 and 5.0 <= ratio <= 18.0 and bid_ask_ratio > -20.0 and not fake_reversal:
                 p["trueWeak"] = True
                 p["signalType"] = "WEAK_TO_STRONG"
-                p["signalTag"] = "【9:25真弱转强】高开%+.2f%%·竞价量占昨量%.1f%%" % (gap, ratio)
+                p["signalTag"] = "【9:25真弱转强】高开%+.2f%%·竞价量占昨量%.1f%%·委比%+.1f%%" % (gap, ratio, bid_ask_ratio)
             elif gap <= -3.0:
                 p["signalType"] = "BROKEN_WARN"
                 p["signalTag"] = "【9:25竞价不及预期】低开%.2f%%·防核按钮" % gap
+            elif 1.0 <= gap <= 7.5 and 5.0 <= ratio <= 18.0:
+                # 量能达标但被委比/假弱转强过滤——保留字段但不置顶，标注原因
+                why = "五档委比%+.1f%%≤-20%%(卖压过重)" % bid_ask_ratio if bid_ask_ratio <= -20.0 else "昨炸板%d次且竞价量比%.1f%%<6%%(假弱转强)" % (prev_rots, ratio)
+                p["signalTag"] = "【竞价未过三重过滤】%s" % why
         if in_auction_window:
             picked.sort(key=lambda p: (0 if p.get("trueWeak") else 1,
                                        -_num(p.get("auctionVolRatio")),
@@ -762,6 +876,8 @@ def generate_top10_picks(date_str=None, mode="post"):
         "lhbDate": lhb_date,
         # 龙虎榜日期锁：lhbDate != tradeDate 表示当日榜未披露，本次未使用龙虎榜加减分
         "lhbLocked": bool(lhb_date) and lhb_date == _norm_date(qdate),
+        # 烂板高危隔离区：不占 Top 10 进攻席位，仅供风控观察（2026-11-25 策略升级）
+        "riskAnchors": risk_anchors,
         "mode": mode,
         "cycle": {
             "phase": phase, "cold": cold, "hot": hot, "dataReady": data_ready,
