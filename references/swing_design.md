@@ -105,9 +105,28 @@ Gemini 的五层漏斗投研框架是合理的，但它对数据源的假设**�
 | Step | 内容 | 验收标准 | 预估 |
 |---|---|---|---|
 | **S1 回测先行** | `ashare_backtest.py` 加 3 个波段策略；沪深300/中证500 各抽 20~30 只，近 3 年滚动回测 | 含印花税/滑点/T+1/去重；**先确认超额与夏普达标再上线**，不达标就调参或放弃 | 中 |
-| **S2 数据模块** | `fetch_fundamentals.py` + `sector_rotation.py` | 单次跑通，输出字段完整率 > 95%，口径标签齐全 | 小 |
+| **S2 数据模块** ✅ | `fetch_fundamentals.py` + `sector_rotation.py`（2026-11-25 完成，见下） | 单次跑通，输出字段完整率 > 95%，口径标签齐全 | 小 |
 | **S3 主引擎** | `auto_pick_swing.py` → `swing_picks.json`；接入 server + Actions | Actions 连续 3 天成功；账本可追踪 | 中 |
 | **S4 前端** | `tab-swing` 四块 + 腾讯实时价联动 buyZone/stopLoss | Playwright 断言通过，5 时区验证 | 中 |
+
+## 3.2 S2 数据模块完成记录（2026-11-25）
+
+### `scripts/sector_rotation.py`（行业/题材轮动）
+
+- 数据源：腾讯 `pt/getRank`（行业 31 全量 / 概念 808 分页，**count 上限 200**，`sort_type` 仅支持 `price`/`turnover`）
+- RS 动量直接用接口 `zdf_d5/d20/d60` 减中证800；广度用 `zgb`（上涨家数占比，接口原值）；拥挤度为**量价代理**（无 60 日历史序列，用换手+5日涨幅+主力净流入拐头估算，输出中明示）
+- **概念清洗**：黑名单 + 正则剔除风格/持股/指数类伪概念 38 个 + 微概念（成交占比 <0.05%）410 个，808 → 有效约 360
+- 实测（11-25）：行业 Top4 = 食品饮料/银行/家电/农林牧渔（主升期），概念板块 13/15 为退潮期——如实反映当日题材普跌格局
+
+### `scripts/fetch_fundamentals.py`（基本面排雷）
+
+- 东财 `RPT_LICO_FN_CPD`（**列名坑：`REPORTDATE` 无下划线；`ROEJQ/KCFJCXSYJLR/CCE_ADD` 不存在**）→ ROE 用 `EPS/BPS` 年化估算并标注
+- `RPT_PUBLIC_OP_NEWPREDICT` 两个**关键坑**（实测发现）：
+  1. **一条预告拆多行**（营收/归母净利/扣非），`PREDICT_TYPE` 各不同——排雷必须取「归母净利润」行，取 `rows[0]` 会把营收行当净利行误判（宁德时代实测：营收略减、净利略增）
+  2. **预告过期**：必须校验 `reportDate` 是否最近报告期，两年前的旧预告 `stale=True` 强制不参与否决
+- `RPT_LIFT_STAGE` 解禁：未来 20 交易日 >3% 一票否决（实测 143 只在册）
+- 缓存：财务/解禁按周、预告按日，落盘 `data/fundamentals_cache.json`（已 gitignore）
+- 验证：宁德/茅台/比亚迪数据合理；hard_veto 四分支全对；VQ 打分区分度合理（宁德 94.2 vs 茅台 64.4，成长维度主导）
 
 **S1 是硬门槛**：Gemini 方案里所有阈值（MA20 偏离 ±、ATR 倍数、PEG 区间）都是拍脑袋给的，**没有回测验证就不许进实盘规则**。
 
