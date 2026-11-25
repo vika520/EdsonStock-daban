@@ -1,17 +1,17 @@
 {
   "ok": true,
   "tradeDate": "2026-11-25",
-  "generatedAt": "2026-11-25 11:52:44",
+  "generatedAt": "2026-11-25 12:37:39",
   "generatedAtTz": "Asia/Shanghai (UTC+8)",
   "mode": "post",
   "regime": {
-    "score": 5,
+    "score": 1,
     "phase": "防守避险期",
     "suggestedPos": "0%~20%",
     "factors": {
       "indexTrend": "沪深300破MA20/MA20走平；中证500破MA20/MA20走平；创业板指破MA20/MA20走平",
       "breadth": "NH60-NL60 5日均值 -2222、NH250-NL250 -1620、上涨占比 33% [量价代理]",
-      "derivatives": "两融5日-2.43% [真实公开数据]",
+      "derivatives": "两融余额5日-4.14%；IM/IC年化贴水-21.3%(深贴水对冲) [真实公开数据]",
       "erpBackground": "ERP 6.31%（77%分位，仅作仓位上限锚）"
     }
   },
