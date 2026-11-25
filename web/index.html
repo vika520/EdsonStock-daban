@@ -1599,13 +1599,35 @@
       return { code: c, prefix: p + c };
     }
 
-    // Web Audio API 合成提示音
+    // HTML 转义：所有 innerHTML 拼接的外部字段（股票名/板块/席位）必须经过此函数，防 XSS
+    function escapeHtml(v) {
+      return String(v == null ? "" : v).replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[ch]);
+    }
+
+    // 安全数值解析：接口可能返回 "-" / "" / " "，统一兜底为 fallback，避免 NaN 传播
+    function safeNum(v, fallback = 0) {
+      const n = typeof v === "number" ? v : parseFloat(String(v == null ? "" : v).trim());
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    // Web Audio API 合成提示音（全局单例 AudioContext，避免每次 new 导致浏览器实例上限后静默失效）
+    let _audioCtx = null;
+    function getAudioCtx() {
+      if (_audioCtx) return _audioCtx;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      try { _audioCtx = new AudioCtx(); } catch (e) { return null; }
+      return _audioCtx;
+    }
+
     function playAlertBeep(freq = 880, duration = 0.09) {
       if (!state.soundEnabled) return;
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        if (ctx.state === "suspended") ctx.resume();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = "sine";
@@ -1619,16 +1641,21 @@
       } catch (e) {}
     }
 
+    let _restoringCustom = false;
+    let _toastTimer = null;
     function showToast(msg) {
+      if (_restoringCustom) return;
       const box = document.getElementById("toastBox");
       const text = document.getElementById("toastMsg");
       if (!box || !text) return;
       text.textContent = msg;
       box.classList.remove("hidden");
-      setTimeout(() => box.classList.add("hidden"), 3200);
+      if (_toastTimer) clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => box.classList.add("hidden"), 3200);
     }
 
     function pushPulseEvent(code, name, type, level, desc) {
+      if (_restoringCustom) return;
       const now = new Date();
       const timeStr = now.toTimeString().slice(0, 8);
       state.pulses.unshift({ time: timeStr, code, name, type, level, desc });
@@ -1637,22 +1664,44 @@
       renderPulseFeed();
     }
 
+    // 当前是否处于集合竞价窗口（09:15~09:25）：此阶段腾讯 openPx(p[5]) 为 0，不能计算 openGap
+    function isAuctionPhase() {
+      const d = new Date();
+      const hm = d.getHours() * 100 + d.getMinutes();
+      return hm >= 915 && hm < 925;
+    }
+
     // 核心引擎：通过动态 <script src="https://qt.gtimg.cn/q=..."> 100% 真实拉取腾讯 L1 五档盘口与放量数据
+    // 并发锁：定时轮询 / 手动刷新 / 添加自选股可能同时触发，后一次会移除前一个 <script> 导致回调丢失
+    let _pollInFlight = false;
+    let _pollPendingCbs = [];
     function pollRealTencentQuotes(onComplete) {
       const prefixes = VERIFIED_STOCKS.map(s => s.prefix).join(",");
       if (!prefixes) return;
+      if (typeof onComplete === "function") _pollPendingCbs.push(onComplete);
+      if (_pollInFlight) return;
+      _pollInFlight = true;
 
       const oldScript = document.getElementById("tencentQuoteJsonp");
       if (oldScript && oldScript.parentNode) {
         oldScript.parentNode.removeChild(oldScript);
       }
+      // 请求前清理 window 残留，防止接口对某只代码返回缺失时读到上一轮的旧数据
+      VERIFIED_STOCKS.forEach(s => { try { delete window[`v_${s.prefix}`]; } catch (e) { window[`v_${s.prefix}`] = undefined; } });
 
       const script = document.createElement("script");
       script.id = "tencentQuoteJsonp";
       script.src = `https://qt.gtimg.cn/q=${prefixes}&_t=${Date.now()}`;
       script.charset = "gbk";
 
+      const finish = () => {
+        _pollInFlight = false;
+        const cbs = _pollPendingCbs; _pollPendingCbs = [];
+        cbs.forEach(cb => { try { cb(); } catch (e) {} });
+      };
+
       script.onload = () => {
+        const auction = isAuctionPhase();
         state.liveTickCount++;
         document.getElementById("liveTickCounter").textContent = String(state.liveTickCount);
         let latestTimestamp = "";
@@ -1664,84 +1713,93 @@
           if (p.length < 50) return;
 
           const newName = p[1] || stock.name;
-          const newPrice = parseFloat(p[3] || stock.price);
-          const preClose = parseFloat(p[4] || stock.preClose);
-          const openPx = parseFloat(p[5] || stock.open);
-          const newVolHand = parseInt(parseFloat(p[6] || 0), 10);
-          const newOuterVol = parseInt(parseFloat(p[7] || 0), 10);
-          const newInnerVol = parseInt(parseFloat(p[8] || 0), 10);
-          const newChg = parseFloat(p[32] || 0);
-          const newAmtWan = parseFloat(p[37] || 0);
-          const newTurnover = parseFloat(p[38] || 0);
-          const newCircMv = parseFloat(p[44] || stock.circMv || 0);
-          const limitUp = parseFloat(p[47] || stock.limitUp || 0);
-          const limitDown = parseFloat(p[48] || stock.limitDown || 0);
-          const newVolRatio = parseFloat(p[49] || stock.volRatio || 0);
+          const newPrice = safeNum(p[3], stock.price);
+          const preClose = safeNum(p[4], stock.preClose);
+          const openPx = safeNum(p[5], 0);
+          const newVolHand = parseInt(safeNum(p[6], 0), 10);
+          const newOuterVol = parseInt(safeNum(p[7], 0), 10);
+          const newInnerVol = parseInt(safeNum(p[8], 0), 10);
+          const newChg = safeNum(p[32], 0);
+          const newAmtWan = safeNum(p[37], 0);
+          const newTurnover = safeNum(p[38], 0);
+          const newCircMv = safeNum(p[44], stock.circMv || 0);
+          const limitUp = safeNum(p[47], stock.limitUp || 0);
+          const limitDown = safeNum(p[48], stock.limitDown || 0);
+          const newVolRatio = safeNum(p[49], stock.volRatio || 0);
           const qTime = p[30] || "";
           if (qTime.length >= 14) {
             latestTimestamp = `${qTime.slice(0,4)}-${qTime.slice(4,6)}-${qTime.slice(6,8)} ${qTime.slice(8,10)}:${qTime.slice(10,12)}:${qTime.slice(12,14)}`;
           }
 
           const newBids = [
-            [parseFloat(p[9] || 0), parseInt(parseFloat(p[10] || 0), 10)],
-            [parseFloat(p[11] || 0), parseInt(parseFloat(p[12] || 0), 10)],
-            [parseFloat(p[13] || 0), parseInt(parseFloat(p[14] || 0), 10)],
-            [parseFloat(p[15] || 0), parseInt(parseFloat(p[16] || 0), 10)],
-            [parseFloat(p[17] || 0), parseInt(parseFloat(p[18] || 0), 10)]
+            [safeNum(p[9]), parseInt(safeNum(p[10]), 10)],
+            [safeNum(p[11]), parseInt(safeNum(p[12]), 10)],
+            [safeNum(p[13]), parseInt(safeNum(p[14]), 10)],
+            [safeNum(p[15]), parseInt(safeNum(p[16]), 10)],
+            [safeNum(p[17]), parseInt(safeNum(p[18]), 10)]
           ];
           const newAsks = [
-            [parseFloat(p[19] || 0), parseInt(parseFloat(p[20] || 0), 10)],
-            [parseFloat(p[21] || 0), parseInt(parseFloat(p[22] || 0), 10)],
-            [parseFloat(p[23] || 0), parseInt(parseFloat(p[24] || 0), 10)],
-            [parseFloat(p[25] || 0), parseInt(parseFloat(p[26] || 0), 10)],
-            [parseFloat(p[27] || 0), parseInt(parseFloat(p[28] || 0), 10)]
+            [safeNum(p[19]), parseInt(safeNum(p[20]), 10)],
+            [safeNum(p[21]), parseInt(safeNum(p[22]), 10)],
+            [safeNum(p[23]), parseInt(safeNum(p[24]), 10)],
+            [safeNum(p[25]), parseInt(safeNum(p[26]), 10)],
+            [safeNum(p[27]), parseInt(safeNum(p[28]), 10)]
           ];
 
-          // 盘中真实前后秒差分检测 (Real Diff Engine)
+          // 首轮实盘同步前，stock.* 来自 daily_picks.json 的上一交易日快照，不能用于差分；
+          // 否则会把「昨收 ≈ 今日涨停价」误判成炸板。首轮只建立基线，不触发任何信号。
+          const isFirstSync = !stock._liveSynced;
           const prevVol = stock.volHand || 0;
           const prevBid1 = (stock.bids && stock.bids[0]) ? stock.bids[0][1] : 0;
           const prevPrice = stock.price || newPrice;
-          const deltaHands = prevVol > 0 && newVolHand >= prevVol ? (newVolHand - prevVol) : 0;
+          const deltaHands = (!isFirstSync && prevVol > 0 && newVolHand >= prevVol) ? (newVolHand - prevVol) : 0;
 
-          // 1) 盘中单次轮询真实爆量点火检测 (3秒内新增成交 >= 3000 手 且价格上跳)
-          if (deltaHands >= 3000 && newPrice >= prevPrice) {
-            pushPulseEvent(
-              stock.code, newName, "盘中实时爆量点火", "red",
-              `3秒内突发主动放量 +${deltaHands.toLocaleString()} 手！现价 ${newPrice.toFixed(2)} (${newChg >= 0 ? '+' : ''}${newChg.toFixed(2)}%)，实时量比 ${newVolRatio}`
-            );
-          }
+          if (!isFirstSync && !auction && newPrice > 0) {
+            // 1) 爆量点火：按「增量成交额 >= 500 万」判定，而非固定手数（固定 3000 手对低价股过松、高价股过严）
+            const avgPx = deltaHands > 0 ? (newPrice + prevPrice) / 2 : 0;
+            const deltaAmtWan = deltaHands * avgPx * 100 / 1e4;
+            if (deltaAmtWan >= 500 && newPrice >= prevPrice) {
+              pushPulseEvent(
+                stock.code, newName, "盘中实时爆量点火", "red",
+                `${state.pollIntervalMs / 1000}秒内突发主动放量 +${deltaHands.toLocaleString()} 手 (约 ${deltaAmtWan.toFixed(0)} 万元)！现价 ${newPrice.toFixed(2)} (${newChg >= 0 ? '+' : ''}${newChg.toFixed(2)}%)，实时量比 ${newVolRatio}`
+              );
+            }
 
-          // 2) 涨停板买一封单真实撤单/加单差分检测
-          const wasAtLimit = limitUp > 0 && Math.abs(prevPrice - limitUp) <= 0.015;
-          const nowAtLimit = limitUp > 0 && Math.abs(newPrice - limitUp) <= 0.015;
-          if (wasAtLimit && !nowAtLimit) {
-            stock.brokenCount = (stock.brokenCount || 0) + 1;
-            stock.signalType = "BROKEN_WARN";
-            pushPulseEvent(
-              stock.code, newName, "实盘炸板核按钮预警", "purple",
-              `${newName}(${stock.code}) 涨停板被砸开！现价回落至 ${newPrice.toFixed(2)} (${newChg.toFixed(2)}%)，累计炸板 ${stock.brokenCount} 次`
-            );
-          } else if (nowAtLimit && prevBid1 > 0) {
-            const bidDiff = newBids[0][1] - prevBid1;
-            if (bidDiff <= -Math.max(5000, prevBid1 * 0.25)) {
+            // 2) 涨停板买一封单真实撤单/加单差分检测
+            const wasAtLimit = limitUp > 0 && Math.abs(prevPrice - limitUp) <= 0.015;
+            const nowAtLimit = limitUp > 0 && Math.abs(newPrice - limitUp) <= 0.015;
+            if (wasAtLimit && !nowAtLimit) {
+              stock.brokenCount = (stock.brokenCount || 0) + 1;
+              stock.signalType = "BROKEN_WARN";
               pushPulseEvent(
-                stock.code, newName, "买一封单撤单预警", "purple",
-                `${newName}(${stock.code}) 买一封单骤减 ${Math.abs(bidDiff).toLocaleString()} 手 (剩余 ${newBids[0][1].toLocaleString()} 手)，警惕炸板！`
+                stock.code, newName, "实盘炸板核按钮预警", "purple",
+                `${newName}(${stock.code}) 涨停板被砸开！现价回落至 ${newPrice.toFixed(2)} (${newChg.toFixed(2)}%)，累计炸板 ${stock.brokenCount} 次`
               );
-            } else if (bidDiff >= Math.max(5000, prevBid1 * 0.20)) {
-              pushPulseEvent(
-                stock.code, newName, "买一封单大幅加单", "red",
-                `${newName}(${stock.code}) 买一封单猛增 +${bidDiff.toLocaleString()} 手 (现封单 ${newBids[0][1].toLocaleString()} 手)`
-              );
+            } else if (nowAtLimit && prevBid1 > 0) {
+              const bidDiff = newBids[0][1] - prevBid1;
+              if (bidDiff <= -Math.max(5000, prevBid1 * 0.25)) {
+                pushPulseEvent(
+                  stock.code, newName, "买一封单撤单预警", "purple",
+                  `${newName}(${stock.code}) 买一封单骤减 ${Math.abs(bidDiff).toLocaleString()} 手 (剩余 ${newBids[0][1].toLocaleString()} 手)，警惕炸板！`
+                );
+              } else if (bidDiff >= Math.max(5000, prevBid1 * 0.20)) {
+                pushPulseEvent(
+                  stock.code, newName, "买一封单大幅加单", "red",
+                  `${newName}(${stock.code}) 买一封单猛增 +${bidDiff.toLocaleString()} 手 (现封单 ${newBids[0][1].toLocaleString()} 手)`
+                );
+              }
             }
           }
 
           // 更新真实字段
           stock.name = newName;
-          stock.price = newPrice;
+          if (newPrice > 0) stock.price = newPrice;
           stock.preClose = preClose;
-          stock.open = openPx;
-          stock.openGap = preClose > 0 ? Number(((openPx / preClose - 1) * 100).toFixed(2)) : 0;
+          if (openPx > 0) stock.open = openPx;
+          // 竞价阶段 openPx=0，保留上一交易日 openGap 不覆盖；开盘后才用真实今开计算
+          if (!auction && openPx > 0 && preClose > 0) {
+            stock.openGap = Number(((openPx / preClose - 1) * 100).toFixed(2));
+          }
           stock.chg = newChg;
           stock.volHand = newVolHand;
           stock.outerVol = newOuterVol;
@@ -1757,8 +1815,9 @@
           stock.bids = newBids;
           stock.asks = newAsks;
           stock.quoteTime = qTime;
+          stock._liveSynced = true;
 
-          if (nowAtLimit && newBids[0][1] > 0) {
+          if (nowAtLimitLive(newPrice, limitUp) && newBids[0][1] > 0) {
             stock.sealYi = Number(((newBids[0][0] * newBids[0][1] * 100) / 1e8).toFixed(2));
             stock.sealRatio = Number(((stock.sealYi / Math.max(0.05, stock.amountYi)) * 100).toFixed(1));
             stock.sealMvRatio = Number(((stock.sealYi / Math.max(1, stock.circMv)) * 100).toFixed(2));
@@ -1772,18 +1831,27 @@
         if (latestTimestamp) {
           document.getElementById("asofBadge").textContent = `实盘行情时间: ${latestTimestamp}`;
         }
-        document.getElementById("connStatusBadge").textContent = `腾讯 qt.gtimg.cn 实盘直连正常 (已同步 ${VERIFIED_STOCKS.length} 股)`;
+        document.getElementById("connStatusBadge").textContent = auction
+          ? `集合竞价中 · 腾讯 qt.gtimg.cn 直连 (已同步 ${VERIFIED_STOCKS.length} 股)`
+          : `腾讯 qt.gtimg.cn 实盘直连正常 (已同步 ${VERIFIED_STOCKS.length} 股)`;
 
         renderStockTable();
         renderInspector();
-        if (typeof onComplete === "function") onComplete();
+        finish();
       };
 
       script.onerror = () => {
         document.getElementById("connStatusBadge").textContent = "网络受限 · 已保持最新实盘核验快照";
+        finish();
       };
 
       document.body.appendChild(script);
+      // 兜底超时：网络异常时 script 既不 onload 也不 onerror，避免并发锁永久卡死
+      setTimeout(() => { if (_pollInFlight) finish(); }, 15000);
+    }
+
+    function nowAtLimitLive(price, limitUp) {
+      return limitUp > 0 && Math.abs(price - limitUp) <= 0.015;
     }
 
     // 渲染左侧脉冲信号流
@@ -1801,13 +1869,13 @@
       };
 
       list.innerHTML = state.pulses.map(p => `
-        <div data-code="${p.code}" class="pulse-item p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-slate-600 cursor-pointer transition">
+        <div data-code="${escapeHtml(p.code)}" class="pulse-item p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-slate-600 cursor-pointer transition">
           <div class="flex items-center justify-between text-[11px] mb-1">
-            <span class="mono text-slate-400">${p.time}</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${colorMap[p.level] || colorMap.red}">${p.type}</span>
+            <span class="mono text-slate-400">${escapeHtml(p.time)}</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${colorMap[p.level] || colorMap.red}">${escapeHtml(p.type)}</span>
           </div>
-          <div class="text-xs font-bold text-white">${p.name} <span class="mono text-slate-400 font-normal">(${p.code})</span></div>
-          <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">${p.desc}</p>
+          <div class="text-xs font-bold text-white">${escapeHtml(p.name)} <span class="mono text-slate-400 font-normal">(${escapeHtml(p.code)})</span></div>
+          <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">${escapeHtml(p.desc)}</p>
         </div>
       `).join("");
 
@@ -1828,6 +1896,9 @@
       return VERIFIED_STOCKS.filter(s => {
         if (state.activeFilter === "VOL_SURGE") {
           if (Number(s.volRatio || 0) < 1.5) return false;
+        } else if (state.activeFilter === "HIGH_SEAL") {
+          // 按实时封成比判定（而非上一交易日的静态 signalType），避免已炸板/未封板的票仍被当作高封成比
+          if (!(s.sealRatio >= 20 && s.sealYi > 0)) return false;
         } else if (state.activeFilter !== "ALL" && s.signalType !== state.activeFilter) {
           return false;
         }
@@ -1870,14 +1941,17 @@
           : (s.boards >= 2 ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-amber-500/20 text-amber-300 border-amber-500/30");
 
         return `
-          <tr data-code="${s.code}" class="stock-row cursor-pointer transition ${isSel ? 'bg-red-500/15 border-l-2 border-l-red-500' : 'hover:bg-slate-800/60'}">
+          <tr data-code="${escapeHtml(s.code)}" class="stock-row cursor-pointer transition ${isSel ? 'bg-red-500/15 border-l-2 border-l-red-500' : 'hover:bg-slate-800/60'}">
             <td class="py-2.5 px-1.5">
-              <div class="font-bold text-white">${s.name}</div>
-              <div class="text-[11px] text-slate-400 mono">${s.code} · ${s.sector}</div>
+              <div class="font-bold text-white flex items-center gap-1">
+                <span>${escapeHtml(s.name)}</span>
+                ${s._custom ? `<button data-remove="${escapeHtml(s.code)}" title="移除自选" class="text-[10px] px-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 leading-none">×</button>` : ''}
+              </div>
+              <div class="text-[11px] text-slate-400 mono">${escapeHtml(s.code)} · ${escapeHtml(s.sector)}</div>
             </td>
             <td class="py-2.5 px-1.5">
-              <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}">${s.boardLabel}</span>
-              <div class="text-[11px] text-slate-300 mt-0.5">${s.signalTag}</div>
+              <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}">${escapeHtml(s.boardLabel)}</span>
+              <div class="text-[11px] text-slate-300 mt-0.5">${escapeHtml(s.signalTag)}</div>
             </td>
             <td class="py-2.5 px-1.5 text-right mono">
               <div class="font-bold ${chgClass}">${s.price.toFixed(2)}</div>
@@ -1886,6 +1960,7 @@
             <td class="py-2.5 px-1.5 text-right mono">
               <div class="${vrClass}">量比 ${s.volRatio}</div>
               <div class="text-[11px] ${activeClass}">净买 ${formatActiveDiff(s.activeDiff || 0)}</div>
+              <div class="text-[10px] ${Number(s.deltaHands || 0) >= 300 ? 'text-amber-300 font-semibold' : 'text-slate-500'}">Δ手 ${(s.deltaHands || 0).toLocaleString()}</div>
             </td>
             <td class="py-2.5 px-1.5 text-right mono">
               <div class="font-semibold text-amber-300">${s.sealYi > 0 ? s.sealYi.toFixed(2) + '亿' : (s.brokenCount > 0 ? '已炸板' : s.amountYi.toFixed(2) + '亿')}</div>
@@ -1900,6 +1975,13 @@
           state.selectedCode = row.getAttribute("data-code");
           renderStockTable();
           renderInspector();
+        });
+      });
+      // 自选股删除按钮：阻止冒泡，避免同时触发行选中
+      tbody.querySelectorAll("[data-remove]").forEach(btn => {
+        btn.addEventListener("click", ev => {
+          ev.stopPropagation();
+          removeCustomStock(btn.getAttribute("data-remove"));
         });
       });
     }
@@ -1968,30 +2050,30 @@
       document.getElementById("inspLhbSeats").innerHTML = s.lhbSeats.map(st => `
         <div class="p-1.5 rounded bg-slate-900/90 border border-slate-800/80 flex items-center justify-between gap-2">
           <div class="truncate">
-            <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] mr-1">${st.tag}</span>
-            <span class="text-slate-300">${st.dept}</span>
+            <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] mr-1">${escapeHtml(st.tag)}</span>
+            <span class="text-slate-300">${escapeHtml(st.dept)}</span>
           </div>
-          <span class="mono font-semibold ${st.net.startsWith('-') ? 'text-emerald-400' : 'text-red-400'} shrink-0">${st.net}</span>
+          <span class="mono font-semibold ${String(st.net || '').startsWith('-') ? 'text-emerald-400' : 'text-red-400'} shrink-0">${escapeHtml(st.net)}</span>
         </div>
       `).join("");
 
       // 回测卡片
-      const bt = s.backtest;
+      const bt = s.backtest || {};
       document.getElementById("inspBacktestBox").innerHTML = `
         <div class="grid grid-cols-2 gap-1.5">
           <div class="p-1.5 rounded bg-slate-900 border border-slate-800">
             <div class="text-[10px] text-slate-400">竞价弱转强 (weak_to_strong)</div>
-            <div class="mono font-bold text-red-400">${bt.wtsRet}</div>
-            <div class="text-[10px] text-slate-400">回撤: ${bt.wtsMdd} | 夏普: ${bt.wtsSharpe}</div>
+            <div class="mono font-bold text-red-400">${escapeHtml(bt.wtsRet)}</div>
+            <div class="text-[10px] text-slate-400">回撤: ${escapeHtml(bt.wtsMdd)} | 夏普: ${escapeHtml(bt.wtsSharpe)}</div>
           </div>
           <div class="p-1.5 rounded bg-slate-900 border border-slate-800">
             <div class="text-[10px] text-slate-400">实盘胜率 / 滚动潜伏对照</div>
-            <div class="mono font-bold text-amber-300">${bt.wtsWin}</div>
-            <div class="text-[10px] text-slate-400">潜伏: ${bt.mrRet} | ${bt.boRet}</div>
+            <div class="mono font-bold text-amber-300">${escapeHtml(bt.wtsWin)}</div>
+            <div class="text-[10px] text-slate-400">潜伏: ${escapeHtml(bt.mrRet)} | ${escapeHtml(bt.boRet)}</div>
           </div>
         </div>
         <div class="text-[11px] text-slate-300 bg-slate-900/60 px-2 py-1 rounded border border-slate-800/80">
-          <span class="text-sky-400 font-semibold">量化诊断：</span>${bt.note}
+          <span class="text-sky-400 font-semibold">量化诊断：</span>${escapeHtml(bt.note)}
         </div>
       `;
     }
@@ -2019,8 +2101,23 @@
       if (state.selectedCode === target.code) renderInspector();
     }
 
+    // 交易时段判定（北京时间）：非交易时段 / 页面后台时自动降频，避免无效轮询
+    function isTradingHours() {
+      const d = new Date();
+      const day = d.getDay();
+      if (day === 0 || day === 6) return false;
+      const hm = d.getHours() * 100 + d.getMinutes();
+      const morning = hm >= 915 && hm <= 1130;
+      const afternoon = hm >= 1300 && hm <= 1500;
+      return morning || afternoon;
+    }
+
     function executePollTick() {
       if (state.engineMode === "LIVE_TENCENT") {
+        // 非交易时段或页面隐藏时降频到 1/5（约 15s 一次），保留心跳但不刷屏
+        const slow = !isTradingHours() || document.hidden;
+        if (slow && state.liveTickCount % 5 !== 0 && !document.hidden) return;
+        if (document.hidden && state.liveTickCount % 10 !== 0) return;
         pollRealTencentQuotes();
       } else {
         triggerReplayPulse();
@@ -2085,27 +2182,77 @@
       };
 
       VERIFIED_STOCKS.unshift(newEntry);
+      newEntry._custom = true;
       state.selectedCode = norm.code;
       state.activeFilter = "ALL";
       input.value = "";
 
       // 更新 Webhook 下拉框
       const selStock = document.getElementById("selWebhookStock");
-      selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${s.code}">${s.code} ${s.name} (${s.boardLabel})</option>`).join("");
+      selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${escapeHtml(s.code)}">${escapeHtml(s.code)} ${escapeHtml(s.name)} (${escapeHtml(s.boardLabel)})</option>`).join("");
 
       pollRealTencentQuotes(() => {
         const added = VERIFIED_STOCKS.find(s => s.code === norm.code);
-        if (added) {
-          added.signalTag = `量比 ${added.volRatio} · 换手 ${added.turnover}%`;
-          pushPulseEvent(
-            added.code, added.name, "新增实盘盯盘", "emerald",
-            `已接入 ${added.name}(${added.code}) 腾讯L1实盘流：现价 ${added.price.toFixed(2)} (${added.chg >= 0 ? '+' : ''}${added.chg.toFixed(2)}%)，量比 ${added.volRatio}，主动净买 ${formatActiveDiff(added.activeDiff)}`
-          );
-          showToast(`成功接入 ${added.name}(${added.code}) 真实五档盘口与放量数据！`);
+        // 真实数据校验：接口对不存在的代码返回空串，stock 不会被执行 _liveSynced，此时必须回滚而不是提示成功
+        if (!added || !added._liveSynced || added.name === "拉取中..." || added.price <= 0) {
+          const idx = VERIFIED_STOCKS.findIndex(s => s.code === norm.code && s._custom);
+          if (idx >= 0) VERIFIED_STOCKS.splice(idx, 1);
+          state.selectedCode = (VERIFIED_STOCKS[0] || {}).code || null;
+          renderStockTable();
+          renderInspector();
+          showToast(`未能获取 ${norm.code} 的行情：代码可能不存在、已退市或非 A 股标的，已移除`);
+          return;
         }
+        added.signalTag = `量比 ${added.volRatio} · 换手 ${added.turnover}%`;
+        saveCustomStocks();
+        pushPulseEvent(
+          added.code, added.name, "新增实盘盯盘", "emerald",
+          `已接入 ${added.name}(${added.code}) 腾讯L1实盘流：现价 ${added.price.toFixed(2)} (${added.chg >= 0 ? '+' : ''}${added.chg.toFixed(2)}%)，量比 ${added.volRatio}，主动净买 ${formatActiveDiff(added.activeDiff)}`
+        );
+        showToast(`成功接入 ${added.name}(${added.code}) 真实五档盘口与放量数据！`);
         renderStockTable();
         renderInspector();
       });
+    }
+
+    // 自选股持久化：只保存用户手动添加的代码，刷新页面后自动恢复
+    const CUSTOM_STOCKS_KEY = "edsonstock_custom_stocks";
+    function saveCustomStocks() {
+      try {
+        const codes = VERIFIED_STOCKS.filter(s => s._custom).map(s => s.code);
+        localStorage.setItem(CUSTOM_STOCKS_KEY, JSON.stringify(codes));
+      } catch (e) {}
+    }
+
+    function removeCustomStock(code) {
+      const idx = VERIFIED_STOCKS.findIndex(s => s.code === code && s._custom);
+      if (idx < 0) return;
+      const name = VERIFIED_STOCKS[idx].name;
+      VERIFIED_STOCKS.splice(idx, 1);
+      saveCustomStocks();
+      if (state.selectedCode === code) state.selectedCode = (VERIFIED_STOCKS[0] || {}).code || null;
+      const selStock = document.getElementById("selWebhookStock");
+      if (selStock) selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${escapeHtml(s.code)}">${escapeHtml(s.code)} ${escapeHtml(s.name)} (${escapeHtml(s.boardLabel)})</option>`).join("");
+      renderStockTable();
+      renderInspector();
+      showToast(`已移除自选 ${name}(${code})`);
+    }
+
+    function restoreCustomStocks() {
+      let codes = [];
+      try { codes = JSON.parse(localStorage.getItem(CUSTOM_STOCKS_KEY) || "[]"); } catch (e) {}
+      if (!Array.isArray(codes)) return;
+      _restoringCustom = true;
+      codes.forEach(c => {
+        const norm = normalizePrefixCode(c);
+        if (!norm || VERIFIED_STOCKS.some(s => s.code === norm.code)) return;
+        const input = document.getElementById("inputAddCode");
+        if (input) {
+          input.value = norm.code;
+          try { addCustomStockToWatchlist(); } catch (e) {}
+        }
+      });
+      _restoringCustom = false;
     }
 
     // 初始化 10 日情绪周期双轴图表
@@ -2227,6 +2374,9 @@
       btn.disabled = true;
       showToast("正在从 GitHub (vika520/Edsonstock) 与腾讯实盘接口同步...");
       pollRealTencentQuotes();
+      // 如实区分「GitHub 成功 / 失败」，不再在 404 或异常时弹成功提示
+      let githubOk = false;
+      let githubMsg = "";
       try {
         const erpRes = await fetch("https://raw.githubusercontent.com/vika520/Edsonstock/main/wolf-cycle/data/erp.json");
         if (erpRes.ok) {
@@ -2234,14 +2384,21 @@
           const snap = erpData.snapshot || {};
           if (snap.erp) {
             document.getElementById("kpiErp").textContent = `${snap.erp}% (${Number(snap.historyPercentile || 78.4).toFixed(1)}%分位)`;
+            githubOk = true;
+            githubMsg = `ERP ${snap.erp}% (${erpData.asof || "日期未知"})`;
+          } else {
+            githubMsg = "erp.json 无 snapshot.erp 字段";
           }
+        } else {
+          githubMsg = `HTTP ${erpRes.status}`;
         }
-        showToast("已同步 EdsonStock GitHub Raw 与腾讯 qt.gtimg.cn 最新实盘快照！");
       } catch (err) {
-        showToast("已完成腾讯 qt.gtimg.cn 实盘五档盘口同步！");
-      } finally {
-        btn.disabled = false;
+        githubMsg = (err && err.message) ? err.message.slice(0, 60) : "网络异常";
       }
+      showToast(githubOk
+        ? `已同步 GitHub ERP（${githubMsg}）+ 腾讯实盘快照`
+        : `腾讯实盘已同步；GitHub ERP 同步失败（${githubMsg}）`);
+      btn.disabled = false;
     }
 
     
@@ -2273,7 +2430,7 @@
             document.getElementById("asofBadge").textContent = `选股更新: ${data.tradeDate || ''} (${data.mode === 'auction' ? '9:25竞价重排' : '盘后四维选股'})`;
             const selStock = document.getElementById("selWebhookStock");
             if (selStock) {
-              selStock.innerHTML = VERIFIED_STOCKS.map(st => `<option value="${st.code}">${st.code} ${st.name} (${st.boardLabel})</option>`).join("");
+              selStock.innerHTML = VERIFIED_STOCKS.map(st => `<option value="${escapeHtml(st.code)}">${escapeHtml(st.code)} ${escapeHtml(st.name)} (${escapeHtml(st.boardLabel)})</option>`).join("");
             }
             renderStockTable();
             renderInspector();
@@ -2312,7 +2469,7 @@
       if (window.lucide) window.lucide.createIcons();
 
       const selStock = document.getElementById("selWebhookStock");
-      selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${s.code}">${s.code} ${s.name} (${s.boardLabel})</option>`).join("");
+      selStock.innerHTML = VERIFIED_STOCKS.map(s => `<option value="${escapeHtml(s.code)}">${escapeHtml(s.code)} ${escapeHtml(s.name)} (${escapeHtml(s.boardLabel)})</option>`).join("");
 
       renderPulseFeed();
       renderStockTable();
@@ -2446,18 +2603,38 @@
         showToast(`信号卡片报文已更新：${s.name}(${s.code})`);
       });
 
-      document.getElementById("btnCopyPayload").addEventListener("click", () => {
+      document.getElementById("btnCopyPayload").addEventListener("click", async () => {
         const text = document.getElementById("webhookPayloadBox").textContent;
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
+        // 优先使用 Clipboard API（HTTPS / localhost 可用），降级到 execCommand（HTTP 环境或旧浏览器）
+        let ok = false;
         try {
-          document.execCommand("copy");
-          showToast("Webhook JSON 报文已复制到剪贴板！");
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            ok = true;
+          }
         } catch (e) {}
-        document.body.removeChild(ta);
+        if (!ok) {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          try { ok = document.execCommand("copy"); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+        showToast(ok ? "Webhook JSON 报文已复制到剪贴板！" : "复制失败，请手动选中报文复制");
       });
+
+      // 页面从后台切回前台时立即刷新一次，避免降频后长时间停留在旧数据
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && state.liveRunning && state.engineMode === "LIVE_TENCENT") {
+          pollRealTencentQuotes();
+        }
+      });
+
+      // 恢复用户上次添加的自选股（首轮实盘同步完成后执行，避免与初始加载争抢并发锁）
+      pollRealTencentQuotes(() => restoreCustomStocks());
     });
   </script>
 </body>
