@@ -53,15 +53,24 @@ KEYMAP = {  # extras.json 内的子键
 }
 
 
-def load(name, use_repo):
-    """返回 (data dict, 来源描述)。"""
+_LOCAL_DIR = None  # 由 --local 设置
+
+
+def load(name, use_repo=True):
+    """返回 (data dict, 来源描述)。
+
+    use_repo=False 时从 _LOCAL_DIR 指定的本地目录读 data/*.json（如工作台的 wolf-cycle/data）。
+    """
     if name == "list":
         return {}, ""
-    if not use_repo:
-        p = Path(name) / (FILES[name][0] if False else FILES[name][0])
-        return None, None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     fname = FILES[name][0]
+    if not use_repo:
+        base = Path(_LOCAL_DIR) if _LOCAL_DIR else None
+        p = base / fname if base else None
+        if p and p.exists():
+            return json.loads(p.read_text(encoding="utf-8")), "local(%s)" % p
+        raise FileNotFoundError("本地数据不存在: %s（请确认 --local 指向包含 %s 的目录）" % (p, fname))
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache = CACHE_DIR / fname
     if cache.exists() and time.time() - cache.stat().st_mtime < CACHE_TTL:
         return json.loads(cache.read_text(encoding="utf-8")), "cache(%s)" % cache
@@ -238,12 +247,17 @@ def main():
     ap.add_argument("--tail", type=int, default=0, help="序列取最后 N 行")
     ap.add_argument("--history", type=int, default=0, help="erp 序列取最近 N 日")
     ap.add_argument("--top", type=int, default=0, help="列表类取前 N 项")
+    ap.add_argument("--local", metavar="DIR", default=None,
+                    help="读本地目录下的 data/*.json（如工作台的 wolf-cycle/data），不传则从 GitHub raw 拉")
     a = ap.parse_args()
 
     if a.what == "list":
         out_list()
         return
-    d, src = load(a.what, use_repo=True)
+    global _LOCAL_DIR
+    if a.local:
+        _LOCAL_DIR = a.local
+    d, src = load(a.what, use_repo=not a.local)
     if d is None:
         print("读取失败", file=sys.stderr)
         return

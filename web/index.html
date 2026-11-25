@@ -1664,10 +1664,23 @@
       renderPulseFeed();
     }
 
+    // 统一北京时间（UTC+8）：所有时段判定都用它，不依赖浏览器本地时区（海外/改过时区的机器会失效）
+    // 直接返回数字分量，彻底避开 Date 对象的本地时区解释陷阱
+    function bjClock() {
+      const n = new Date();
+      const ms = n.getTime() + 8 * 3600 * 1000;           // 先平移到北京时间轴
+      const d = new Date(ms);
+      return {
+        day: d.getUTCDay(),                               // 0=周日
+        hm: d.getUTCHours() * 100 + d.getUTCMinutes(),    // 用 UTC 分量读，因为轴已经平移
+        hh: d.getUTCHours(),
+        mm: d.getUTCMinutes(),
+      };
+    }
+
     // 当前是否处于集合竞价窗口（09:15~09:25）：此阶段腾讯 openPx(p[5]) 为 0，不能计算 openGap
     function isAuctionPhase() {
-      const d = new Date();
-      const hm = d.getHours() * 100 + d.getMinutes();
+      const hm = bjClock().hm;
       return hm >= 915 && hm < 925;
     }
 
@@ -1755,13 +1768,18 @@
           const deltaHands = (!isFirstSync && prevVol > 0 && newVolHand >= prevVol) ? (newVolHand - prevVol) : 0;
 
           if (!isFirstSync && !auction && newPrice > 0) {
-            // 1) 爆量点火：按「增量成交额 >= 500 万」判定，而非固定手数（固定 3000 手对低价股过松、高价股过严）
+            // 1) 爆量点火：按「增量成交额 / 流通市值」归一化（3秒换手突增），替代固定金额阈值
+            //    固定 500 万对 15 亿微盘股过松、对 300 亿中军过严；用相对流通盘的比例对两者一视同仁
             const avgPx = deltaHands > 0 ? (newPrice + prevPrice) / 2 : 0;
             const deltaAmtWan = deltaHands * avgPx * 100 / 1e4;
-            if (deltaAmtWan >= 500 && newPrice >= prevPrice) {
+            const circWan = Math.max(1, newCircMv * 100);   // 流通市值亿 -> 万
+            const deltaTurnoverPct = deltaAmtWan / circWan * 100;  // 本次轮询的换手增量(%)
+            // 阈值随轮询间隔线性缩放：3s 基准 0.15%，2s->0.10%，5s->0.25%
+            const surgeThreshold = 0.15 * (state.pollIntervalMs / 3000);
+            if ((deltaTurnoverPct >= surgeThreshold || deltaAmtWan >= 500) && newPrice >= prevPrice) {
               pushPulseEvent(
                 stock.code, newName, "盘中实时爆量点火", "red",
-                `${state.pollIntervalMs / 1000}秒内突发主动放量 +${deltaHands.toLocaleString()} 手 (约 ${deltaAmtWan.toFixed(0)} 万元)！现价 ${newPrice.toFixed(2)} (${newChg >= 0 ? '+' : ''}${newChg.toFixed(2)}%)，实时量比 ${newVolRatio}`
+                `${state.pollIntervalMs / 1000}秒内突发主动放量 +${deltaHands.toLocaleString()} 手 (约 ${deltaAmtWan.toFixed(0)} 万元 / 换手 +${deltaTurnoverPct.toFixed(2)}%)！现价 ${newPrice.toFixed(2)} (${newChg >= 0 ? '+' : ''}${newChg.toFixed(2)}%)，实时量比 ${newVolRatio}`
               );
             }
 
@@ -1777,10 +1795,13 @@
               );
             } else if (nowAtLimit && prevBid1 > 0) {
               const bidDiff = newBids[0][1] - prevBid1;
-              if (bidDiff <= -Math.max(5000, prevBid1 * 0.25)) {
+              // 区分「主动撤单」与「成交消耗」：买一减少量中，被成交吃掉的部分(deltaHands)是正常换手承接，
+              // 只有净撤单 cancelEst 突增才是真正的撤单预警。原先直接用 bidDiff 会把大单成交误报为撤单。
+              const cancelEst = Math.max(0, -(bidDiff + deltaHands));
+              if (cancelEst >= Math.max(5000, prevBid1 * 0.25)) {
                 pushPulseEvent(
                   stock.code, newName, "买一封单撤单预警", "purple",
-                  `${newName}(${stock.code}) 买一封单骤减 ${Math.abs(bidDiff).toLocaleString()} 手 (剩余 ${newBids[0][1].toLocaleString()} 手)，警惕炸板！`
+                  `${newName}(${stock.code}) 买一净撤单 ${cancelEst.toLocaleString()} 手 (期间成交 ${deltaHands.toLocaleString()} 手，剩余 ${newBids[0][1].toLocaleString()} 手)，警惕炸板！`
                 );
               } else if (bidDiff >= Math.max(5000, prevBid1 * 0.20)) {
                 pushPulseEvent(
@@ -2103,10 +2124,10 @@
 
     // 交易时段判定（北京时间）：非交易时段 / 页面后台时自动降频，避免无效轮询
     function isTradingHours() {
-      const d = new Date();
-      const day = d.getDay();
+      const c = bjClock();
+      const day = c.day;
       if (day === 0 || day === 6) return false;
-      const hm = d.getHours() * 100 + d.getMinutes();
+      const hm = c.hm;
       const morning = hm >= 915 && hm <= 1130;
       const afternoon = hm >= 1300 && hm <= 1500;
       return morning || afternoon;
@@ -2403,7 +2424,9 @@
 
     
     // 自动从后端 /api/daily_picks 或同目录 daily_picks.json 同步最新每日自动选股 Top 10
-    async function loadDailyAutoPicks(mode = "post", forceRefresh = false) {
+    // 注意：替换池子时保留用户手动添加的自选股（_custom），否则后台一次刷新就把自选冲掉
+    let _lastPicksGeneratedAt = "";
+    async function loadDailyAutoPicks(mode = "post", forceRefresh = false, silent = false) {
       const urls = forceRefresh
         ? [`/api/daily_picks?refresh=1&mode=${mode}`, `./daily_picks.json?_t=${Date.now()}`]
         : [`/api/daily_picks?mode=${mode}`, `./daily_picks.json?_t=${Date.now()}`];
@@ -2414,7 +2437,14 @@
           if (!res.ok) continue;
           const data = await res.json();
           if (data && Array.isArray(data.picks) && data.picks.length > 0) {
-            VERIFIED_STOCKS = data.picks;
+            // 热更新去重：generatedAt 未变化则不重载（避免每 60s 重建 DOM 抖动）
+            const gen = String(data.generatedAt || "");
+            if (!forceRefresh && gen && gen === _lastPicksGeneratedAt) return false;
+            _lastPicksGeneratedAt = gen;
+
+            const customs = VERIFIED_STOCKS.filter(s => s._custom);
+            const prevCodes = new Set(VERIFIED_STOCKS.filter(s => !s._custom).map(s => s.code));
+            VERIFIED_STOCKS = [...data.picks, ...customs];
             if (!VERIFIED_STOCKS.some(x => x.code === state.selectedCode)) {
               state.selectedCode = VERIFIED_STOCKS[0].code;
             }
@@ -2427,7 +2457,9 @@
               const topSec = (ms.topSectors && ms.topSectors[0]) ? `${ms.topSectors[0].name}${ms.topSectors[0].count}家` : "";
               document.getElementById("kpiMaxBoard").textContent = `${ms.maxBoard}连板 / ${topSec}`;
             }
-            document.getElementById("asofBadge").textContent = `选股更新: ${data.tradeDate || ''} (${data.mode === 'auction' ? '9:25竞价重排' : '盘后四维选股'})`;
+            const modeLabel = data.mode === 'auction' ? '9:25竞价重排'
+              : String(data.mode || '').startsWith('intraday_') ? '早盘卡位替补' : '盘后四维选股';
+            document.getElementById("asofBadge").textContent = `选股更新: ${data.tradeDate || ''} (${modeLabel}${gen ? ' · ' + gen : ''})`;
             const selStock = document.getElementById("selWebhookStock");
             if (selStock) {
               selStock.innerHTML = VERIFIED_STOCKS.map(st => `<option value="${escapeHtml(st.code)}">${escapeHtml(st.code)} ${escapeHtml(st.name)} (${escapeHtml(st.boardLabel)})</option>`).join("");
@@ -2435,8 +2467,16 @@
             renderStockTable();
             renderInspector();
             pollRealTencentQuotes();
+            // 热更新时提示新增/剔除的票（非手动触发才提示）
+            if (silent && !forceRefresh) {
+              const newCodes = data.picks.map(p => p.code).filter(c => !prevCodes.has(c));
+              const goneCodes = [...prevCodes].filter(c => !data.picks.some(p => p.code === c));
+              if (newCodes.length || goneCodes.length) {
+                showToast(`盯盘池已热更新 (${modeLabel})：新增 ${newCodes.length} 只，移除 ${goneCodes.length} 只`);
+              }
+            }
             if (forceRefresh) {
-              showToast(`已按四维游资选股法则完成 ${data.mode === 'auction' ? '9:25竞价弱转强' : '盘后'} Top 10 自动更新！`);
+              showToast(`已按四维游资选股法则完成 ${modeLabel} Top 10 自动更新！`);
             }
             return true;
           }
@@ -2635,6 +2675,13 @@
 
       // 恢复用户上次添加的自选股（首轮实盘同步完成后执行，避免与初始加载争抢并发锁）
       pollRealTencentQuotes(() => restoreCustomStocks());
+
+      // 池子热更新：每 60s 比对 daily_picks.json 的 generatedAt，后台 09:25/09:35/09:45 更新后自动同步进盯盘池
+      // 仅在交易时段 + 页面可见时轮询，非交易时段不浪费请求
+      setInterval(() => {
+        if (document.hidden || !isTradingHours()) return;
+        loadDailyAutoPicks("post", false, true);
+      }, 60000);
     });
   </script>
 </body>

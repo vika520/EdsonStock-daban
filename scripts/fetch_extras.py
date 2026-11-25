@@ -164,7 +164,11 @@ def fetch_spot():
     改用与主任务同源的 tx_kline（腾讯双域名 + 新浪日线降级），已实测当日
     4 指数均可取到收盘。函数内延迟 import 避免模块顶层循环依赖。
     """
-    import daily_update as du
+    try:
+        import daily_update as du
+    except ImportError:
+        # daily_update 属于上游 Edsonstock 主仓库，本仓库不包含；缺它时该子功能不可用而非整体崩溃
+        raise SystemExit("fetch_extras: 现货指数基差功能依赖上游仓库的 daily_update 模块，本仓库未包含，请从 vika520/Edsonstock 获取")
     out = {}
     for code in SPOT_CODES:
         try:

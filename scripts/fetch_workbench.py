@@ -10,7 +10,14 @@ import os
 import re
 import urllib.request
 
-import tdx_direct as tdx
+try:
+    import tdx_direct as tdx
+except ImportError:
+    # tdx_direct 属于上游 Edsonstock 主仓库（通达信直连），本仓库不包含
+    raise SystemExit(
+        "fetch_workbench: 依赖上游仓库的 tdx_direct 模块（通达信直连），本仓库未包含。\n"
+        "请从 vika520/Edsonstock 获取，或改用本仓库的 scripts/query.py --what workbench 读取已落盘数据。"
+    )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "data", "workbench.json")

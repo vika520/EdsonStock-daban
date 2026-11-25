@@ -85,6 +85,11 @@ def fetch_l1_map(codes):
     return out
 
 
+def now_beijing():
+    """统一北京时间（UTC+8），不依赖运行环境 TZ。"""
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
+
+
 def fetch_kline_rows(code_raw, count=7):
     """腾讯日K：返回行 [date, open, close, high, low, volume(手)]。"""
     try:
@@ -97,48 +102,83 @@ def fetch_kline_rows(code_raw, count=7):
         return []
 
 
-def fetch_prev_day_amount_est_yi(code_raw):
-    """昨日全天成交额估算（量价代理）：成交量(手)×100×当日均价 / 1e8。"""
-    rows = fetch_kline_rows(code_raw, 4)
-    if len(rows) < 2:
-        return 0.0
-    r = rows[-2]
+def _row_amount_est_yi(r):
+    """单根日K成交额估算（量价代理）：成交量(手)×100×OHLC均价 / 1e8。"""
     vol = _num(r[5])
     o, c, h, l = _num(r[1]), _num(r[2]), _num(r[3]), _num(r[4])
     return round(vol * 100.0 * ((o + c + h + l) / 4.0) / 1e8, 3)
 
 
-def fetch_first_yin_ma5_candidates(codes, limit=2):
-    """首阴回踩 5 日线：前一日阳线、最新阴线、最低价靠近 MA5，且此前非连续阴线。"""
+def fetch_prev_day_amount_est_yi(code_raw, today=None):
+    """昨日(T-1)全天成交额估算。
+
+    按日期锚定而非 rows[-2]：腾讯日K的当日行插入时间不稳定（盘后 19 点也可能还没插入），
+    取 rows[-2] 可能拿到前天。这里严格取「日期 < today」的最后一行。
+    """
+    today = today or now_beijing().strftime("%Y-%m-%d")
+    rows = fetch_kline_rows(code_raw, 6)
+    prev_rows = [r for r in rows if str(r[0]) < today]
+    if not prev_rows:
+        return 0.0
+    return _row_amount_est_yi(prev_rows[-1])
+
+
+def _limit_pct_for(code):
+    """按代码推断涨跌停幅度：双创 20%，北交所 30%，主板 10%。"""
+    try:
+        return normalize_code(code)[3]
+    except Exception:
+        return 0.10
+
+
+def fetch_first_yin_ma5_candidates(codes, limit=2, today=None):
+    """首阴回踩 5 日线：近期有涨停基因 + 前一日阳线 + 最新阴线 + 最低价靠近 MA5 + 此前非连续阴线。
+
+    必须校验涨停基因：否则任何普通回调股都符合「前阳后阴 + 贴 MA5」，冰点期会选到一堆无关票。
+    """
+    today = today or now_beijing().strftime("%Y-%m-%d")
+
     def check(raw):
         try:
             pure = normalize_code(raw)[0]
         except Exception:
             return None
-        rows = fetch_kline_rows(pure, 7)
-        if len(rows) < 4:
+        rows = fetch_kline_rows(pure, 10)
+        if len(rows) < 6:
             return None
-        prev, last = rows[-2], rows[-1]
+        # 日期锚定：只用 today 之前的数据（盘后 today 当日行可能已插入，也可能没有，都按 < today 之后的最后一行作为「最新」）
+        hist = [r for r in rows if str(r[0]) < today] or rows
+        if len(hist) < 6:
+            return None
+        prev, last = hist[-2], hist[-1]
+        lim = _limit_pct_for(pure)
+        # 涨停基因：近 5 日内至少一根收盘涨幅 >= 阈值-0.5%（容忍四舍五入）
+        gene = False
+        for i in range(max(1, len(hist) - 6), len(hist)):
+            pc = _num(hist[i - 1][2])
+            if pc > 0 and (_num(hist[i][2]) / pc - 1.0) >= (lim - 0.005):
+                gene = True
+                break
+        if not gene:
+            return None
         if _num(prev[2]) <= _num(prev[1]):
             return None
         if _num(last[2]) >= _num(last[1]):
             return None
-        if len(rows) >= 3 and _num(rows[-3][2]) < _num(rows[-3][1]):
+        if _num(hist[-3][2]) < _num(hist[-3][1]):
             return None
-        closes = [_num(r[2]) for r in rows]
+        closes = [_num(r[2]) for r in hist]
         ma5 = sum(closes[-5:]) / min(5, len(closes))
         if ma5 <= 0:
             return None
         low, close = _num(last[4]), _num(last[2])
         if not (low <= ma5 * 1.03 and close >= ma5 * 0.97):
             return None
-        vol = _num(last[5])
-        avg = (_num(last[1]) + close + _num(last[3]) + low) / 4.0
         return {
             "code": pure,
             "close": close,
             "ma5": round(ma5, 2),
-            "amountYi": round(vol * 100.0 * avg / 1e8, 2),
+            "amountYi": _row_amount_est_yi(last),
             "score": 82.0,
         }
 
@@ -148,14 +188,40 @@ def fetch_first_yin_ma5_candidates(codes, limit=2):
     return results[:limit]
 
 
-def fetch_billboard_map():
-    """拉取最新一期东财龙虎榜净买前 30 名及买卖前五席位画像。"""
+def _fetch_lhb_rows(base, code, tdate, rpt, sort_col):
+    """拉取单只股票单侧（买/卖）席位明细，取满前 5 席。"""
+    p_seat = {
+        "reportName": rpt,
+        "columns": "OPERATEDEPT_NAME,BUY,SELL,NET",
+        "filter": '(SECURITY_CODE="%s")(TRADE_DATE=\'%s\')' % (code, tdate),
+        "pageNumber": "1",
+        "pageSize": "5",
+        "sortTypes": "-1",
+        "sortColumns": sort_col,
+        "source": "WEB",
+        "client": "WEB",
+    }
+    try:
+        s_raw = json.loads(http_get(base + "?" + urllib.parse.urlencode(p_seat), use_curl=True))
+        return ((s_raw.get("result") or {}).get("data")) or []
+    except Exception:
+        return []
+
+
+def fetch_billboard_map(extra_codes=None, qdate=None):
+    """拉取最新一期东财龙虎榜及买卖前五席位画像。
+
+    extra_codes: 额外需要穿透席位的代码（如跌停/炸板池），用于抓「拉萨接盘 + 主力净卖」的陷阱股——
+                  这类票龙虎榜净买额往往靠后甚至为负，只看净买前排会漏杀。
+    qdate:        选股交易日（YYYYMMDD）。龙虎榜最新披露日 != qdate 时（如 15:05 当日榜未出），
+                  返回空 bmap，避免拿昨日龙虎榜给今日加减分。
+    """
     base = "https://datacenter-web.eastmoney.com/api/data/v1/get"
     params = {
         "reportName": "RPT_DAILYBILLBOARD_DETAILSNEW",
         "columns": "SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,CLOSE_PRICE,CHANGE_RATE,BILLBOARD_NET_AMT,BILLBOARD_BUY_AMT,BILLBOARD_SELL_AMT,ACCUM_AMOUNT,EXPLANATION",
         "pageNumber": "1",
-        "pageSize": "40",
+        "pageSize": "80",
         "sortTypes": "-1,-1",
         "sortColumns": "TRADE_DATE,BILLBOARD_NET_AMT",
         "source": "WEB",
@@ -171,6 +237,11 @@ def fetch_billboard_map():
         return "", {}, set()
 
     latest_date = str(rows[0].get("TRADE_DATE", ""))[:10]
+
+    # 日期锁：龙虎榜最新披露日必须等于选股交易日，否则不使用（避免 15:05 用昨日榜给今日加减分）
+    if qdate and latest_date and latest_date != str(qdate):
+        return latest_date, {}, set()
+
     bmap = {}
     for r in rows:
         tdate = str(r.get("TRADE_DATE", ""))[:10]
@@ -194,63 +265,51 @@ def fetch_billboard_map():
             "seats": [],
         }
 
+    # 穿透范围：净买前 30 + 净卖前 10（陷阱股） + 额外候选（跌停/炸板池）
+    by_net = sorted(bmap.keys(), key=lambda c: -bmap[c]["netWan"])
+    probe = set(by_net[:30]) | set(by_net[-10:])
+    for c in (extra_codes or []):
+        c = str(c or "").zfill(6)
+        if c in bmap:
+            probe.add(c)
     vetoed = set()
-    top_codes = sorted(bmap.keys(), key=lambda c: -bmap[c]["netWan"])[:8]
-    for c in top_codes:
+    for c in probe:
         tdate = bmap[c]["date"]
         seats_list = []
         buy_depts, sell_depts = [], []
         buy_total = sell_total = buy1_wan = 0.0
-        for rpt, side_label in [("RPT_BILLBOARD_DAILYDETAILSBUY", "买"), ("RPT_BILLBOARD_DAILYDETAILSSELL", "卖")]:
-            p_seat = {
-                "reportName": rpt,
-                "columns": "OPERATEDEPT_NAME,BUY,SELL,NET",
-                "filter": '(SECURITY_CODE="%s")(TRADE_DATE=\'%s\')' % (c, tdate),
-                "pageNumber": "1",
-                "pageSize": "5",
-                "sortTypes": "-1",
-                "sortColumns": "BUY" if "BUY" in rpt else "SELL",
-                "source": "WEB",
-                "client": "WEB",
-            }
-            try:
-                s_raw = json.loads(http_get(base + "?" + urllib.parse.urlencode(p_seat), use_curl=True))
-                s_rows = ((s_raw.get("result") or {}).get("data")) or []
-                seen_sig = set()
-                idx_cnt = 0
-                for sr in s_rows:
-                    dept = sr.get("OPERATEDEPT_NAME") or "未知席位"
-                    b_w = float(sr.get("BUY") or 0) / 1e4
-                    s_w = float(sr.get("SELL") or 0) / 1e4
-                    sig = (dept, round(b_w), round(s_w))
-                    if sig in seen_sig:
-                        continue
-                    seen_sig.add(sig)
-                    idx_cnt += 1
-                    n_w = float(sr.get("NET") or (b_w * 1e4 - s_w * 1e4)) / 1e4
-                    tag = tag_seat(dept)
-                    if side_label == "买":
-                        buy_total += b_w
-                        if idx_cnt == 1:
-                            buy1_wan = b_w
-                        buy_depts.append(dept)
-                    else:
-                        sell_total += s_w
-                        sell_depts.append(dept)
-                    short_dept = dept.replace("证券股份有限公司", "").replace("有限责任公司", "").replace("证券营业部", "")
-                    seats_list.append({
-                        "side": "%s%d" % (side_label, idx_cnt),
-                        "tag": tag,
-                        "dept": "%s (买%.0f万 / 卖%.0f万)" % (short_dept, b_w, s_w),
-                        "net": "%+.0f万" % n_w
-                    })
-                    if idx_cnt >= 3:
-                        break
-            except Exception:
-                pass
+        seen_sig = set()
+        for rpt, side_label, sort_col in [("RPT_BILLBOARD_DAILYDETAILSBUY", "买", "BUY"), ("RPT_BILLBOARD_DAILYDETAILSSELL", "卖", "SELL")]:
+            idx_cnt = 0
+            for sr in _fetch_lhb_rows(base, c, tdate, rpt, sort_col):
+                dept = sr.get("OPERATEDEPT_NAME") or "未知席位"
+                b_w = float(sr.get("BUY") or 0) / 1e4
+                s_w = float(sr.get("SELL") or 0) / 1e4
+                sig = (dept, round(b_w), round(s_w))
+                if sig in seen_sig:
+                    continue
+                seen_sig.add(sig)
+                idx_cnt += 1
+                n_w = float(sr.get("NET") or (b_w * 1e4 - s_w * 1e4)) / 1e4
+                tag = tag_seat(dept)
+                if side_label == "买":
+                    buy_total += b_w
+                    if idx_cnt == 1:
+                        buy1_wan = b_w
+                    buy_depts.append(dept)
+                else:
+                    sell_total += s_w
+                    sell_depts.append(dept)
+                short_dept = dept.replace("证券股份有限公司", "").replace("有限责任公司", "").replace("证券营业部", "")
+                seats_list.append({
+                    "side": "%s%d" % (side_label, idx_cnt),
+                    "tag": tag,
+                    "dept": "%s (买%.0f万 / 卖%.0f万)" % (short_dept, b_w, s_w),
+                    "net": "%+.0f万" % n_w
+                })
         bmap[c]["seats"] = seats_list
 
-        # 负面席位一：买榜 >=3 个拉萨散户席位，且卖榜主力净卖出 -> 一票否决
+        # 负面席位一：买榜 >=3 个拉萨散户席位，且卖榜净卖出 -> 一票否决
         lasha_cnt = sum(1 for d in buy_depts if "拉萨" in d)
         if lasha_cnt >= 3 and sell_total > buy_total:
             vetoed.add(c)
@@ -314,9 +373,15 @@ def enrich_with_tencent_l1(items):
 
         is_zt = limit_up > 0 and abs(now_px - limit_up) <= 0.015
         amt_yi = round(amt_wan / 10000.0, 2)
-        seal_yi = round((bids[0][0] * bids[0][1] * 100.0) / 1e8, 2) if (is_zt and bids[0][1] > 0) else target.get("sealYi", 0.0)
-        seal_ratio = round((seal_yi / max(0.01, amt_yi)) * 100.0, 1) if is_zt else 0.0
-        seal_mv_ratio = round((seal_yi / max(1.0, circ_mv)) * 100.0, 2) if is_zt else target.get("sealFlowRatio", 0.0)
+        # 未封涨停时封单相关字段一律归零，不能回退取上一交易日的封单（否则非涨停票显示昨日封单，严重误导）
+        if is_zt and bids[0][1] > 0:
+            seal_yi = round((bids[0][0] * bids[0][1] * 100.0) / 1e8, 2)
+            seal_ratio = round((seal_yi / max(0.01, amt_yi)) * 100.0, 1)
+            seal_mv_ratio = round((seal_yi / max(1.0, circ_mv)) * 100.0, 2)
+        else:
+            seal_yi = 0.0
+            seal_ratio = 0.0
+            seal_mv_ratio = 0.0
 
         target.update({
             "name": p[1] or target.get("name", ""),
@@ -350,22 +415,30 @@ def enrich_with_tencent_l1(items):
 def generate_top10_picks(date_str=None, mode="post"):
     """按四维游资量化法则自动遴选 Top 10 核心股票池。"""
     # 统一用北京时间（UTC+8），不依赖运行环境 TZ；避免容器/本机时区差异造成调度错位
-    now_bj = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
+    now_bj = now_beijing()
     if not date_str:
         date_str = now_bj.strftime("%Y%m%d")
 
     zt_data = fetch_em_pool("getTopicZTPool", date_str)
     zb_data = fetch_em_pool("getTopicZBPool", date_str)
     dt_data = fetch_em_pool("getTopicDTPool", date_str)
-    lhb_date, bmap, vetoed_lhb = fetch_billboard_map()
 
     qdate = zt_data.get("qdate") or date_str
     zt_pool = [x for x in (zt_data.get("pool") or []) if "ST" not in str(x.get("n", ""))]
     zb_pool = [x for x in (zb_data.get("pool") or []) if "ST" not in str(x.get("n", ""))]
     dt_pool = [x for x in (dt_data.get("pool") or []) if "ST" not in str(x.get("n", ""))]
+
+    # 龙虎榜：传入 qdate 做日期锁，传入跌停/炸板池代码扩大穿透范围（专抓拉萨接盘陷阱股）
+    probe_codes = [str(x.get("c") or "") for x in (dt_pool + zb_pool) if x.get("c")]
+    lhb_date, bmap, vetoed_lhb = fetch_billboard_map(extra_codes=probe_codes, qdate=qdate)
     if vetoed_lhb:
         zt_pool = [x for x in zt_pool if str(x.get("c")) not in vetoed_lhb]
         zb_pool = [x for x in zb_pool if str(x.get("c")) not in vetoed_lhb]
+
+    # 北交所（92/8/4 开头）30% 涨跌幅 + 流动性薄，1 板卡位逻辑适用性差，主线卡位池排除
+    def _is_bj(code):
+        c = str(code or "").zfill(6)
+        return c.startswith(("92", "8", "4"))
 
     zt_cnt, zb_cnt, dt_cnt = len(zt_pool), len(zb_pool), len(dt_pool)
     zb_rate = round(zb_cnt / max(1, zt_cnt + zb_cnt) * 100.0, 1)
@@ -546,7 +619,8 @@ def generate_top10_picks(date_str=None, mode="post"):
 
     # 梯队2：主线 1进2 / 2进3 高封成比卡位先锋（主升期扩至 5 席）
     mainline_kawi = sorted(
-        [x for x in scored_zt if 1 <= x["boards"] <= 3 and 2.5 <= x["turnover"] <= 38.0 and x["brokenCount"] <= 1],
+        [x for x in scored_zt if 1 <= x["boards"] <= 3 and 2.5 <= x["turnover"] <= 38.0 and x["brokenCount"] <= 1
+         and not _is_bj(x["code"])],
         key=lambda x: (-(1 if x["sector"] in top_sectors[:3] else 0), -x["boards"], -x["sealFlowRatio"])
     )
     main_added = 0
@@ -678,6 +752,8 @@ def generate_top10_picks(date_str=None, mode="post"):
         "auctionNote": auction_note,
         "tradeDate": qdate,
         "lhbDate": lhb_date,
+        # 龙虎榜日期锁：lhbDate != tradeDate 表示当日榜未披露，本次未使用龙虎榜加减分
+        "lhbLocked": bool(lhb_date) and lhb_date == str(qdate),
         "mode": mode,
         "cycle": {
             "phase": phase, "cold": cold, "hot": hot, "dataReady": data_ready,
@@ -721,7 +797,9 @@ def main():
     print("=== EdsonStock 超短 Top 10 自动选股完成 (交易日: %s | 模式: %s) ===" % (res["tradeDate"], res["mode"]))
     print("  情绪周期: 【%s】 | 涨停 %d / 跌停 %d / 炸板 %d (炸板率 %.1f%%) | 最高板 %d连板" %
           (ms["phase"], ms["ztCount"], ms["dtCount"], ms["zbCount"], ms["zbRate"], ms["maxBoard"]))
-    print("  动态配额: %s | 龙虎榜否决: %s" % (cy["quotas"], cy["vetoedByLhb"] or "无"))
+    print("  动态配额: %s | 龙虎榜否决: %s | 龙虎榜日期锁: %s" % (
+        cy["quotas"], cy["vetoedByLhb"] or "无",
+        ("已解锁(%s)" % res["lhbDate"]) if res.get("lhbLocked") else "锁定(当日榜未披露，未用龙虎榜加减分)"))
     print("  主线板块: " + " | ".join(["%s(%d家)" % (s["name"], s["count"]) for s in ms["topSectors"]]))
     print("  已写入文件: %s (共 %d 只核心标的)" % (out_path, len(res["picks"])))
     for idx, p in enumerate(res["picks"], 1):

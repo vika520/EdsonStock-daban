@@ -26,7 +26,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from realtime_and_short import fetch_em_pool, http_get, normalize_code
 from query import load as edson_load
 from auto_pick_top10 import generate_top10_picks, fetch_l1_map
@@ -35,15 +35,73 @@ WEBHOOK_URL = os.environ.get("EDSON_WEBHOOK_URL", "")
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 WEB_INDEX = BASE_DIR / "web" / "index.html"
 DAILY_PICKS_FILE = BASE_DIR / "web" / "daily_picks.json"
+MIN_VALID_PICKS = 3  # 与 CI 校验一致：少于此数视为无效结果，不覆盖已有文件
+
+# Webhook 冷却：同一 (事件类型, 代码) 在冷却窗口内只推一次，避免刷屏
+_WEBHOOK_COOLDOWN_SEC = 1800
+_webhook_last_sent = {}
+_webhook_lock = threading.Lock()
+
+
+def now_beijing():
+    """统一北京时间（UTC+8），不依赖运行环境 TZ。"""
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
+
+
+def send_webhook(event_type, code, title, lines):
+    """主动推送 Webhook（飞书/钉钉/企业微信/Bark 通用 JSON），带冷却去重。未配置 URL 时静默跳过。"""
+    if not WEBHOOK_URL:
+        return False
+    key = (event_type, str(code or ""))
+    now = time.time()
+    with _webhook_lock:
+        last = _webhook_last_sent.get(key, 0)
+        if now - last < _WEBHOOK_COOLDOWN_SEC:
+            return False
+        _webhook_last_sent[key] = now
+    stamp = now_beijing().strftime("%Y-%m-%d %H:%M:%S")
+    body = "%s\n%s\n%s" % (title, "\n".join(lines), stamp)
+    payload = {
+        "msg_type": "text",
+        "text": {"content": body},
+        # 兼容三种常见自定义机器人格式
+        "feishu": {"msg_type": "text", "content": {"text": body}},
+        "dingtalk": {"msgtype": "text", "text": {"content": body}},
+        "wecom": {"msgtype": "text", "text": {"content": body}},
+        "meta": {"event": event_type, "code": code, "time": stamp},
+    }
+    try:
+        req = urllib.request.Request(
+            WEBHOOK_URL,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=8) as r:
+            r.read()
+        print("[Webhook] 已推送 %s %s" % (event_type, code))
+        return True
+    except Exception as e:
+        print("[Webhook Error]", e)
+        return False
 
 
 def run_auto_picker(mode="post"):
+    """跑选股并落盘。结果无效（< MIN_VALID_PICKS 只或 ok=False）时保留原文件，不覆盖。"""
     try:
         res = generate_top10_picks(None, mode=mode)
+        picks = (res or {}).get("picks") or []
+        if not (res or {}).get("ok") or len(picks) < MIN_VALID_PICKS:
+            print("[AutoPicker] 结果无效 (%d 只)，保留原 daily_picks.json 不覆盖" % len(picks))
+            return None
         DAILY_PICKS_FILE.parent.mkdir(parents=True, exist_ok=True)
         DAILY_PICKS_FILE.write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
         print("[AutoPicker] 已自动更新 Top 10 选股池 (%s | mode=%s | 共 %d 只)" %
-              (res.get("tradeDate"), mode, len(res.get("picks") or [])))
+              (res.get("tradeDate"), mode, len(picks)))
+        if mode in ("post", "auction"):
+            top = ", ".join("%s(%s)" % (p.get("name"), p.get("code")) for p in picks[:5])
+            send_webhook("picks_%s" % mode, "ALL", "【EdsonStock】%s 选股完成 (%d 只)" % (
+                "盘后" if mode == "post" else "竞价重排", len(picks)), ["前5: " + top])
         return res
     except Exception as e:
         print("[AutoPicker Error]", e)
@@ -90,7 +148,7 @@ def run_intraday_replacement(check_time):
     existing = {str(p.get("code") or "") for p in kept}
     removed = [{"code": p.get("code"), "name": p.get("name"), "openGap": _f((qmap.get(p.get("code")) or {}).get("openGap"))} for p in weak]
 
-    now_bj = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
+    now_bj = now_beijing()
     date_str = now_bj.strftime("%Y%m%d")
     zt_pool = (fetch_em_pool("getTopicZTPool", date_str) or {}).get("pool") or []
     top_sectors = [s.get("name") for s in (data.get("marketSummary") or {}).get("topSectors") or []][:3]
@@ -168,21 +226,74 @@ def run_intraday_replacement(check_time):
     DAILY_PICKS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print("[Intraday %s] 剔除 %d 只弱势股，补入 %d 只早盘卡位股，当前 %d 只。" %
           (check_time, len(removed), len(added), len(data["picks"])))
+    # 替补发生时推送 Webhook
+    lines = []
+    if removed:
+        lines.append("剔除: " + ", ".join("%s(%.2f%%)" % (r.get("name"), r.get("openGap") or 0) for r in removed))
+    if added:
+        lines.append("补入: " + ", ".join("%s(%s 首封%s 封流比%.2f%%)" % (
+            a.get("name"), a.get("code"), a.get("firstSeal"), a.get("sealFlowRatio") or 0) for a in added))
+    send_webhook("intraday_%s" % check_time, "ALL", "【EdsonStock】%s 早盘卡位替补" % check_time, lines)
     return data
 
 
+def run_auction_watch():
+    """09:20~09:25 竞价末端监控：对 Top 10 拉取竞价匹配价，识别「竞价抢筹/砸盘」并推送。
+
+    竞价阶段腾讯 openPx(p[5]) 可能为 0，改用 p[3]（当前匹配价）对比昨收计算竞价涨跌幅。
+    """
+    if not DAILY_PICKS_FILE.exists():
+        return None
+    try:
+        data = json.loads(DAILY_PICKS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    picks = data.get("picks") or []
+    if not picks:
+        return None
+
+    def _f(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    quotes = fetch_tencent_quotes(",".join(str(p.get("code") or "") for p in picks if p.get("code")))
+    alerts = []
+    for q in quotes:
+        px, pre = _f(q.get("price")), _f(q.get("preClose"))
+        if px <= 0 or pre <= 0:
+            continue
+        gap = (px / pre - 1.0) * 100.0
+        name = q.get("name") or q.get("code")
+        if gap >= 7.0:
+            alerts.append((name, q.get("code"), gap, "竞价抢筹/一字风险"))
+        elif gap <= -3.0:
+            alerts.append((name, q.get("code"), gap, "竞价砸盘/核按钮风险"))
+    for name, code, gap, tag in alerts:
+        send_webhook("auction_" + ("up" if gap > 0 else "down"), code,
+                     "【EdsonStock】竞价异动 %s" % tag,
+                     ["%s(%s) 竞价 %+.2f%%" % (name, code, gap)])
+    if alerts:
+        print("[Auction] 竞价异动 %d 条" % len(alerts))
+    return alerts
+
+
 def background_scheduler_loop():
-    """后台定时守护线程：交易日 09:25 / 09:35 / 09:45 / 15:05 / 17:35 自动刷新 daily_picks.json。"""
+    """后台定时守护线程：交易日 09:20~09:25 竞价监控 / 09:25 / 09:35 / 09:45 / 15:05 / 17:35 自动刷新 daily_picks.json。"""
     triggered = set()
     # 启动时如果还没有 daily_picks.json，立即生成一次
     if not DAILY_PICKS_FILE.exists():
         run_auto_picker("post")
     while True:
-        # 与 auto_pick_top10 统一使用北京时间（UTC+8），不依赖运行环境 TZ
-        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
+        now = now_beijing()
         if now.weekday() < 5:  # 周一至周五
             hm = now.strftime("%H:%M")
             day_key = now.strftime("%Y%m%d") + "_" + hm
+            # 09:20~09:24 竞价末端：每分钟一次监控（09:25 由 auction 重排接管）
+            if "09:20" <= hm <= "09:24" and day_key not in triggered:
+                triggered.add(day_key)
+                run_auction_watch()
             if hm == "09:25" and day_key not in triggered:
                 triggered.add(day_key)
                 run_auto_picker("auction")
@@ -376,7 +487,7 @@ def main():
     t = threading.Thread(target=background_scheduler_loop, daemon=True)
     t.start()
 
-    srv = HTTPServer((args.host, args.port), SignalHandler)
+    srv = ThreadingHTTPServer((args.host, args.port), SignalHandler)
     print("=== EdsonStock A股超短实盘信号与每日自动选股网关已启动: http://%s:%d ===" % (args.host, args.port))
     print("  - 调度时点(北京时间): 09:25 竞价重排 | 09:35/09:45 早盘卡位替补 | 15:05/17:35 盘后选股")
     print("  - 超短信号前端工作台 : http://%s:%d/" % (args.host, args.port))
