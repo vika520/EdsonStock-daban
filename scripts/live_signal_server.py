@@ -8,6 +8,7 @@
      - 每个交易日 09:35 / 09:45 自动执行 `run_intraday_replacement()`：剔除开盘跌幅 <= -3% 的弱势股，
        补入当日 09:30~09:40 最先封板且封流比 >2% 的主线新卡位股；
      - 每个交易日 15:05 自动执行 `generate_top10_picks(mode="post")`（收盘涨跌停池初选 Top 10）；
+     - 每个交易日 15:20 / 18:00 自动执行 `run_swing_picker()`（趋势波段 15:20 初选 / 18:00 终选）；
      - 每个交易日 17:35 自动执行 `generate_top10_picks(mode="post")`（龙虎榜游资/机构席位披露后终选 Top 10）；
      - 选股结果自动持久化写入 `/web/daily_picks.json`，前端打开页面即自动同步最新 10 只标的！
   3) 提供 `/api/daily_picks?refresh=1&mode=post|auction` 接口：支持网页端一键手动触发重新选股；
@@ -30,11 +31,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from realtime_and_short import fetch_em_pool, http_get, normalize_code
 from query import load as edson_load
 from auto_pick_top10 import generate_top10_picks, fetch_l1_map
+from auto_pick_swing import generate_swing_picks, update_tracker
 
 WEBHOOK_URL = os.environ.get("EDSON_WEBHOOK_URL", "")
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 WEB_INDEX = BASE_DIR / "web" / "index.html"
 DAILY_PICKS_FILE = BASE_DIR / "web" / "daily_picks.json"
+SWING_PICKS_FILE = BASE_DIR / "web" / "swing_picks.json"
 MIN_VALID_PICKS = 3  # 与 CI 校验一致：少于此数视为无效结果，不覆盖已有文件
 
 # Webhook 冷却：同一 (事件类型, 代码) 在冷却窗口内只推一次，避免刷屏
@@ -105,6 +108,29 @@ def run_auto_picker(mode="post"):
         return res
     except Exception as e:
         print("[AutoPicker Error]", e)
+        return None
+
+
+def run_swing_picker():
+    """跑波段选股并落盘。注意：防守期 picks=0 是合法输出（regime 有效即可），只挡 ok=false。"""
+    try:
+        res = generate_swing_picks("post")
+        if not res or not res.get("ok"):
+            print("[SwingPicker] 生成失败（%s），保留原 swing_picks.json" % ((res or {}).get("error") or "未知"))
+            return None
+        tracker = update_tracker(res)
+        res["activeTracker"] = tracker
+        SWING_PICKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SWING_PICKS_FILE.write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
+        rg = res.get("regime") or {}
+        print("[SwingPicker] 已更新波段选股 (%s | %s %d分 | %d 只标的)" %
+              (res.get("tradeDate"), rg.get("phase"), rg.get("score", 0), len(res.get("picks") or [])))
+        top = ", ".join("%s(%s)" % (p.get("name"), p.get("code")) for p in (res.get("picks") or [])[:5])
+        send_webhook("swing_picks", "ALL", "【EdsonStock 波段】%s选股完成（%d 只）" % (
+            rg.get("phase") or "", len(res.get("picks") or [])), [top] if top else ["防守期：无买入信号"])
+        return res
+    except Exception as e:
+        print("[SwingPicker Error]", e)
         return None
 
 
@@ -303,6 +329,9 @@ def background_scheduler_loop():
             elif hm in ("15:05", "17:35") and day_key not in triggered:
                 triggered.add(day_key)
                 run_auto_picker("post")
+            elif hm in ("15:20", "18:00") and day_key not in triggered:
+                triggered.add(day_key)
+                run_swing_picker()
         time.sleep(15)
 
 
@@ -420,6 +449,20 @@ class SignalHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
             self._send_json({"ok": False, "error": "daily_picks.json 尚未生成"}, status=404)
+        elif parsed.path in ("/swing_picks.json", "/api/swing_picks"):
+            refresh = qs.get("refresh", ["0"])[0] == "1"
+            if refresh or not SWING_PICKS_FILE.exists():
+                res = run_swing_picker()
+                if res:
+                    self._send_json(res)
+                    return
+            if SWING_PICKS_FILE.exists():
+                try:
+                    self._send_json(json.loads(SWING_PICKS_FILE.read_text(encoding="utf-8")))
+                    return
+                except Exception:
+                    pass
+            self._send_json({"ok": False, "error": "swing_picks.json 尚未生成"}, status=404)
         elif parsed.path == "/api/quotes":
             codes = qs.get("codes", ["002771,603324,002579,000823,002642,600360"])[0]
             self._send_json({"ok": True, "quotes": fetch_tencent_quotes(codes)})
@@ -489,9 +532,10 @@ def main():
 
     srv = ThreadingHTTPServer((args.host, args.port), SignalHandler)
     print("=== EdsonStock A股超短实盘信号与每日自动选股网关已启动: http://%s:%d ===" % (args.host, args.port))
-    print("  - 调度时点(北京时间): 09:25 竞价重排 | 09:35/09:45 早盘卡位替补 | 15:05/17:35 盘后选股")
+    print("  - 调度时点(北京时间): 09:25 竞价重排 | 09:35/09:45 卡位替补 | 15:05/17:35 打板选股 | 15:20/18:00 波段选股")
     print("  - 超短信号前端工作台 : http://%s:%d/" % (args.host, args.port))
     print("  - 每日自动选股 Top10 : http://%s:%d/api/daily_picks (支持 ?refresh=1&mode=post|auction)" % (args.host, args.port))
+    print("  - 趋势波段选股     : http://%s:%d/api/swing_picks (支持 ?refresh=1)" % (args.host, args.port))
     print("  - 实时五档与放量接口 : http://%s:%d/api/quotes?codes=603324,002771,002164" % (args.host, args.port))
     srv.serve_forever()
 

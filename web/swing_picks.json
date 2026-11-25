@@ -1,0 +1,215 @@
+{
+  "ok": true,
+  "tradeDate": "2026-11-25",
+  "generatedAt": "2026-11-25 11:50:39",
+  "generatedAtTz": "Asia/Shanghai (UTC+8)",
+  "mode": "post",
+  "regime": {
+    "score": 5,
+    "phase": "防守避险期",
+    "suggestedPos": "0%~20%",
+    "factors": {
+      "indexTrend": "沪深300破MA20/MA20走平；中证500破MA20/MA20走平；创业板指破MA20/MA20走平",
+      "breadth": "NH60-NL60 5日均值 -2222、NH250-NL250 -1620、上涨占比 33% [量价代理]",
+      "derivatives": "两融5日-2.43% [真实公开数据]",
+      "erpBackground": "ERP 6.31%（77%分位，仅作仓位上限锚）"
+    }
+  },
+  "sectorRotation": [
+    {
+      "code": "pt01801120",
+      "name": "食品饮料",
+      "stage": "主升期",
+      "totalScore": 64.6,
+      "scores": {
+        "rs": 42.2,
+        "flow": 2.5,
+        "crowd": 19.9
+      },
+      "rs5": 2.28,
+      "rs20": 12.51,
+      "rs60": 21.86,
+      "absD5": 0.19,
+      "absD20": 7.26,
+      "absD60": 5.94,
+      "mainFlow5Wan": -71662.0,
+      "mainFlow20Wan": -384336.0,
+      "mainFlow5Rel": -18.559,
+      "mainFlow20Rel": -99.535,
+      "upRatio": 82.0,
+      "upCount": 100,
+      "totalCount": 122,
+      "turnoverWan": 1500123.0,
+      "circMvYi": 38613.2,
+      "hsl": 1.01,
+      "overheat": false,
+      "hotness": 0.01,
+      "dataTier": {
+        "price_flow_breadth": "真实公开数据（腾讯接口原值）",
+        "crowding": "量价代理（无 60 日历史序列，用换手+5日涨幅+主力净流入拐头估算）"
+      },
+      "benchUsed": "中证800",
+      "amtSharePct": 1.97
+    },
+    {
+      "code": "pt01801780",
+      "name": "银行",
+      "stage": "主升期",
+      "totalScore": 62.4,
+      "scores": {
+        "rs": 42.4,
+        "flow": 0.2,
+        "crowd": 19.8
+      },
+      "rs5": 2.4,
+      "rs20": 10.51,
+      "rs60": 27.23,
+      "absD5": 0.31,
+      "absD20": 5.26,
+      "absD60": 11.31,
+      "mainFlow5Wan": -57742.0,
+      "mainFlow20Wan": -622672.0,
+      "mainFlow5Rel": -4.949,
+      "mainFlow20Rel": -53.373,
+      "upRatio": 52.4,
+      "upCount": 22,
+      "totalCount": 42,
+      "turnoverWan": 2088454.0,
+      "circMvYi": 116665.1,
+      "hsl": 0.2,
+      "overheat": false,
+      "hotness": 0.01,
+      "dataTier": {
+        "price_flow_breadth": "真实公开数据（腾讯接口原值）",
+        "crowding": "量价代理（无 60 日历史序列，用换手+5日涨幅+主力净流入拐头估算）"
+      },
+      "benchUsed": "中证800",
+      "amtSharePct": 2.74
+    },
+    {
+      "code": "pt01801110",
+      "name": "家用电器",
+      "stage": "主升期",
+      "totalScore": 60.2,
+      "scores": {
+        "rs": 41.5,
+        "flow": -0.4,
+        "crowd": 19.1
+      },
+      "rs5": 1.81,
+      "rs20": 10.83,
+      "rs60": 16.71,
+      "absD5": -0.28,
+      "absD20": 5.58,
+      "absD60": 0.79,
+      "mainFlow5Wan": -130734.0,
+      "mainFlow20Wan": -425848.0,
+      "mainFlow5Rel": -74.502,
+      "mainFlow20Rel": -242.682,
+      "upRatio": 45.7,
+      "upCount": 42,
+      "totalCount": 92,
+      "turnoverWan": 1522555.0,
+      "circMvYi": 17547.6,
+      "hsl": 1.59,
+      "overheat": false,
+      "hotness": 0.05,
+      "dataTier": {
+        "price_flow_breadth": "真实公开数据（腾讯接口原值）",
+        "crowding": "量价代理（无 60 日历史序列，用换手+5日涨幅+主力净流入拐头估算）"
+      },
+      "benchUsed": "中证800",
+      "amtSharePct": 2.0
+    },
+    {
+      "code": "pt01801010",
+      "name": "农林牧渔",
+      "stage": "主升期",
+      "totalScore": 59.8,
+      "scores": {
+        "rs": 40.5,
+        "flow": 1.7,
+        "crowd": 17.6
+      },
+      "rs5": 1.21,
+      "rs20": 8.28,
+      "rs60": 15.57,
+      "absD5": -0.88,
+      "absD20": 3.03,
+      "absD60": -0.35,
+      "mainFlow5Wan": -4900.0,
+      "mainFlow20Wan": -609420.0,
+      "mainFlow5Rel": -5.419,
+      "mainFlow20Rel": -673.988,
+      "upRatio": 69.9,
+      "upCount": 72,
+      "totalCount": 103,
+      "turnoverWan": 1412410.0,
+      "circMvYi": 9042.0,
+      "hsl": 2.5,
+      "overheat": false,
+      "hotness": 0.12,
+      "dataTier": {
+        "price_flow_breadth": "真实公开数据（腾讯接口原值）",
+        "crowding": "量价代理（无 60 日历史序列，用换手+5日涨幅+主力净流入拐头估算）"
+      },
+      "benchUsed": "中证800",
+      "amtSharePct": 1.85
+    },
+    {
+      "code": "pt01801170",
+      "name": "交通运输",
+      "stage": "主升期",
+      "totalScore": 55.7,
+      "scores": {
+        "rs": 34.3,
+        "flow": 1.5,
+        "crowd": 20.0
+      },
+      "rs5": 0.08,
+      "rs20": 5.6,
+      "rs60": 13.74,
+      "absD5": -2.01,
+      "absD20": 0.35,
+      "absD60": -2.18,
+      "mainFlow5Wan": -71127.0,
+      "mainFlow20Wan": -577177.0,
+      "mainFlow5Rel": -25.399,
+      "mainFlow20Rel": -206.101,
+      "upRatio": 67.5,
+      "upCount": 85,
+      "totalCount": 126,
+      "turnoverWan": 953235.0,
+      "circMvYi": 28004.5,
+      "hsl": 0.38,
+      "overheat": false,
+      "hotness": 0.0,
+      "dataTier": {
+        "price_flow_breadth": "真实公开数据（腾讯接口原值）",
+        "crowding": "量价代理（无 60 日历史序列，用换手+5日涨幅+主力净流入拐头估算）"
+      },
+      "benchUsed": "中证800",
+      "amtSharePct": 1.25
+    }
+  ],
+  "sectorMeta": {
+    "nBoards": 5,
+    "nRaw": 31,
+    "stageCount": {
+      "主升期": 5
+    },
+    "bench": {
+      "code": "sh000906",
+      "name": "中证800",
+      "returns": {
+        "d5": -2.09,
+        "d20": -5.25,
+        "d60": -15.92
+      }
+    },
+    "dataTierNote": "涨跌幅/主力净流入/成交额/流通市值/涨跌家数为真实公开数据；拥挤度为量价代理（非 60 日分位）。"
+  },
+  "picks": [],
+  "note": "防守避险期：暂停进攻型波段买入信号；可关注高股息防御（本引擎不输出）。",
+  "activeTracker": []
+}
