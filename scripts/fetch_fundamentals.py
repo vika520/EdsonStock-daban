@@ -229,14 +229,21 @@ def fetch_unlock_map(days_ahead=20, force=False):
 
 # ---------------------------------------------------------------- 排雷与打分
 
-def hard_veto(code, fin, pred, unlock, quote, listed_days=None):
-    """一票否决。返回 (vetoed: bool, reasons: list[str])。quote 需含 circMv(亿)/amount20Yi(20日均成交额亿)。"""
+def hard_veto(code, fin, pred, unlock, quote, listed_days=None, recent_boards=None):
+    """一票否决。返回 (vetoed: bool, reasons: list[str])。
+
+    quote 需含 circMv(亿)/amount20Yi(20日均成交额亿)。
+    listed_days: 上市交易日数（日线根数近似），< 180 否决次新。
+    recent_boards: 近 15 日涨停收盘次数，>= 3 否决情绪妖股（波段不接连板情绪票）。
+    """
     reasons = []
     name = str((fin or {}).get("name") or "")
     if "ST" in name.upper():
         reasons.append("ST/*ST")
     if listed_days is not None and listed_days < 180:
-        reasons.append("上市不足180交易日(%d)" % listed_days)
+        reasons.append("上市不足180交易日(约)")
+    if recent_boards is not None and recent_boards >= 3:
+        reasons.append("近15日%d次涨停(情绪妖股)" % recent_boards)
     circ = _f((quote or {}).get("circMv")) or 0.0
     amt = _f((quote or {}).get("amount20Yi")) or 0.0
     if circ and circ < 40:
@@ -255,42 +262,57 @@ def hard_veto(code, fin, pred, unlock, quote, listed_days=None):
 
 
 def value_quality_score(fin, pred, pe_ttm=None, sector_pe_median=None):
-    """Value-Quality 打分（100）。返回 (score, parts, notes)。缺数据的维度按中性 50% 给分并在 notes 标注。"""
+    """Value-Quality 打分（100）。返回 (score, parts, notes)。
+
+    口径纪律：区分「公司亏损导致字段无效」与「字段缺失」——
+    亏损股（eps<=0 / pe<=0）的相关维度给 0 分，不能拿"免费中性分"；
+    只有非亏损但字段确实抓不到时才给 50% 中性分。
+    """
     notes = []
+    eps = _f((fin or {}).get("eps"))
+    losing = eps is not None and eps <= 0
     # --- 盈利质量 35
     q = 0.0
     roe = _f((fin or {}).get("roeTtmEst"))
-    if roe is None:
-        q += 35 * 0.5
-        notes.append("ROE缺失(中性给分)")
+    if losing:
+        notes.append("当期亏损(EPS<=0)：质量与成长维度计 0 分")
+        quality = 0.0
+        growth = 0.0
     else:
-        q += 20 * min(1.0, max(0.0, (roe - 8.0) / 7.0))    # 8% 起步，15% 满分
-    cfn = _f((fin or {}).get("cfToNp"))
-    if cfn is None:
-        q += 15 * 0.5
-        notes.append("现金流/净利缺失(中性给分)")
-    else:
-        q += 15 * min(1.0, max(0.0, cfn / 0.8))            # 0.8 满分
-    quality = q
-    # --- 成长景气 35
-    g = 0.0
-    ry, ny = _f((fin or {}).get("revYoy")), _f((fin or {}).get("npYoy"))
-    if ry is None or ny is None:
-        g += 35 * 0.5
-        notes.append("增速缺失(中性给分)")
-    else:
-        g += 15 * min(1.0, max(0.0, ry / 10.0))            # 营收同比 10% 满分
-        g += 20 * min(1.0, max(0.0, ny / 15.0))            # 净利同比 15% 满分
-    pt = str((pred or {}).get("predictType") or "")
-    if pt in ("预增", "略增", "扭亏", "续盈"):
-        g += 0  # 已在基数内，不重复加分；仅打标签
-        notes.append("预告%s[公告口径]" % pt)
-    growth = min(35.0, g)
+        if roe is None:
+            q += 35 * 0.5
+            notes.append("ROE缺失(中性给分)")
+        else:
+            q += 20 * min(1.0, max(0.0, (roe - 8.0) / 7.0))    # 8% 起步，15% 满分
+        cfn = _f((fin or {}).get("cfToNp"))
+        if cfn is None:
+            q += 15 * 0.5
+            notes.append("现金流/净利缺失(中性给分)")
+        else:
+            q += 15 * min(1.0, max(0.0, cfn / 0.8))            # 0.8 满分
+        quality = q
+        # --- 成长景气 35
+        g = 0.0
+        ry, ny = _f((fin or {}).get("revYoy")), _f((fin or {}).get("npYoy"))
+        if ry is None or ny is None:
+            g += 35 * 0.5
+            notes.append("增速缺失(中性给分)")
+        else:
+            g += 15 * min(1.0, max(0.0, ry / 10.0))            # 营收同比 10% 满分
+            g += 20 * min(1.0, max(0.0, ny / 15.0))            # 净利同比 15% 满分
+        pt = str((pred or {}).get("predictType") or "")
+        if pt in ("预增", "略增", "扭亏", "续盈"):
+            g += 0  # 已在基数内，不重复加分；仅打标签
+            notes.append("预告%s[公告口径]" % pt)
+        growth = min(35.0, g)
     # --- 估值性价比 30
     v = 0.0
-    if pe_ttm is None or pe_ttm <= 0:
+    if pe_ttm is not None and pe_ttm <= 0:
+        v = 0.0                       # 亏损/异常 PE：0 分（不是中性分）
+        notes.append("PE<=0(亏损或异常)：估值维度 0 分")
+    elif pe_ttm is None:
         v = 30 * 0.5
-        notes.append("PE无效(中性给分)")
+        notes.append("PE缺失(中性给分)")
     elif sector_pe_median and sector_pe_median > 0:
         rel = pe_ttm / sector_pe_median
         v = 30 * (1.0 - min(1.0, max(0.0, (rel - 0.6) / 1.2)))   # 0.6x 满分，1.8x 零分

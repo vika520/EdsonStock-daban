@@ -380,7 +380,9 @@ def backtest_one(code, strategy, bars=None, limit_pct=None, fee_buy=FEE_BUY, fee
             else:
                 below_ma20_days = 0
             vol20_t1 = sma([x["vol"] for x in bars], 20, i - 2)
-            big_drop = below_ma20_days >= 2
+            # 放量破 MA20 两日才算有效离场信号（原先 vol20_t1 计算了未参与判定，成了无条件破两日离场）
+            vol_recent = sma([x["vol"] for x in bars], 2, i - 1) or 0
+            big_drop = below_ma20_days >= 2 and (not vol20_t1 or vol_recent > vol20_t1)
 
             exit_now = False
             if c_t1 <= stop:
@@ -415,6 +417,10 @@ def backtest_one(code, strategy, bars=None, limit_pct=None, fee_buy=FEE_BUY, fee
         if pos == 0 and i >= 130:
             try:
                 buy = sig(bars, i, limit_pct) if strategy == "vcp_breakout" else sig(bars, i)
+                # 禁追高：与实盘 classify_setup 同一口径——当日涨停/涨幅>7%/偏离MA20>12% 不录取。
+                # 修正前回测未调用 _no_chase，统计结论含追高样本，与实盘规则不一致。
+                if buy and not _no_chase(bars, i, limit_pct):
+                    buy = False
             except Exception:
                 buy = False
             if buy:

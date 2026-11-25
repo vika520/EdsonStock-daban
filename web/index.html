@@ -2726,9 +2726,11 @@
     function pollSwingQuotes() {
       const d = _swingData;
       if (!d) return;
-      const codes = [];
-      (d.picks || []).forEach(p => codes.push(p.prefix || p.code));
-      (d.activeTracker || []).forEach(t => { if (t.code) codes.push(t.code); });
+      // picks 与账本代码合并去重（同一票在两处出现时只拉一次）
+      const codeSet = new Set();
+      (d.picks || []).forEach(p => codeSet.add(String(p.prefix || p.code)));
+      (d.activeTracker || []).forEach(t => { if (t.code) codeSet.add(t.code); });
+      const codes = [...codeSet];
       if (!codes.length) return;
       const prefs = codes.map(c => {
         const pure = String(c).replace(/^(sh|sz|bj)/, "");
@@ -2889,6 +2891,8 @@
             const sec = document.getElementById(`tab-${t}`);
             if (sec) sec.classList.toggle("hidden", t !== targetTab);
           });
+          // 切到波段 Tab 立即拉一次实时价，不等 5s 定时器
+          if (targetTab === "swing" && typeof pollSwingQuotes === "function") pollSwingQuotes();
         });
       });
 
@@ -3017,10 +3021,26 @@
         if (!swingSec || swingSec.classList.contains("hidden")) return;   // Tab 不可见不轮询
         pollSwingQuotes();
       }, 5000);
-      // 波段池热更新：每 120s 比对一次（后端 15:20/18:00 更新后自动同步）
+      // 波段池热更新：每 120s 拉一次，generatedAt 未变化则不重渲染（避免 DOM 抖动）
+      let _lastSwingGen = "";
       setInterval(() => {
         if (document.hidden) return;
-        loadSwingPicks(false);
+        (async () => {
+          const urls = ["/api/swing_picks", "./swing_picks.json?_t=" + Date.now()];
+          for (const u of urls) {
+            try {
+              const res = await fetch(u);
+              if (!res.ok) continue;
+              const data = await res.json();
+              if (data && data.ok && data.regime && data.generatedAt !== _lastSwingGen) {
+                _lastSwingGen = data.generatedAt;
+                _swingData = data;
+                renderSwingAll();
+              }
+              break;
+            } catch (e) {}
+          }
+        })();
       }, 120000);
 
       // 恢复用户上次添加的自选股（首轮实盘同步完成后执行，避免与初始加载争抢并发锁）

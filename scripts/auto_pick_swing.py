@@ -25,7 +25,8 @@ from realtime_and_short import http_get, normalize_code
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from sector_rotation import build_rotation, now_beijing as _sr_now
 from fetch_fundamentals import fetch_financials, fetch_predict, fetch_unlock_map, hard_veto, value_quality_score
-from swing_backtest import fetch_bars, sig_trend_pullback, sig_vcp_breakout, sig_stage2_start, atr, sma, rsi
+from swing_backtest import fetch_bars, sig_trend_pullback, sig_vcp_breakout, sig_stage2_start, atr, sma, rsi, _no_chase
+from ashare_backtest import is_limit_up_close
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 MAX_PICKS = {"进攻期": 8, "震荡轮动期": 5, "防守避险期": 0}
@@ -72,20 +73,21 @@ def fetch_index_ma_status(count=70):
 
 
 def fetch_breadth_score():
-    """市场宽度（30 分）：flow.json 的 NH-NL 5 日均值 + 涨跌家数比。【量价代理】"""
+    """市场宽度（30 分）：flow.json 的 NH-NL 5 日均值 + 涨跌家数比。【量价代理】
+
+    注意：nh60/nl60 是「当日」新高新低家数绝对值（非差分序列），直接取最近 5 行求均值即可；
+    不要取 6 行再丢首行——数据不足 6 行时会除以 5 但只有 4 个样本，系统性缩小 20%。
+    """
     try:
         from query import load
         d, _ = load("flow", True)
-        rows = (d.get("rows") or [])[-6:]
+        rows = (d.get("rows") or [])[-5:]
         if len(rows) < 5:
             return 15.0, "宽度数据不足(中性)"
         # 字段序: date,up,dn,fl,n,uv,dv,nh60,nl60,nh250,nl250,...
-        nn60 = [int(r[7]) - int(r[8]) for r in rows]     # nh60 - nl60
-        nn250 = [int(r[9]) - int(r[10]) for r in rows]
-        upr = [int(r[1]) / max(1, int(r[1]) + int(r[2])) for r in rows]
-        avg_nn60 = sum(nn60[1:]) / 5
-        avg_nn250 = sum(nn250[1:]) / 5
-        avg_upr = sum(upr[1:]) / 5
+        avg_nn60 = sum(int(r[7]) - int(r[8]) for r in rows) / len(rows)
+        avg_nn250 = sum(int(r[9]) - int(r[10]) for r in rows) / len(rows)
+        avg_upr = sum(int(r[1]) / max(1, int(r[1]) + int(r[2])) for r in rows) / len(rows)
         s = 0.0
         if avg_nn60 > 0: s += 1.0
         if avg_nn250 > 0: s += 0.5
@@ -96,25 +98,51 @@ def fetch_breadth_score():
 
 
 def fetch_deriv_leverage_score():
-    """衍生品与杠杆（20 分）：extras.json 的期指基差 + 两融 5 日变化。【真实公开数据】"""
+    """衍生品与杠杆（20 分）。【真实公开数据】
+
+    leverage.rows 列结构（fetch_extras.py）：
+      [date, RZYE(融资余额), RZMRE, RZJME, RQYE, RZRQYE(两融余额), RZYEZB, LTSZ(流通市值)]
+    —— 必须读 r[5]（RZRQYE）。曾误用 r[-1] 把流通市值当两融余额，导致大盘下跌被重复扣分。
+    derivatives.futures.<品种> 行结构：[..., basis, annNear(年化基差%), ...]，取 IM/IC 当月年化基差。
+    """
     try:
         from query import load
         d, _ = load("sentiment", True)
-        dv = (d.get("derivatives") or {})
-        lv = (d.get("leverage") or {})
         s, notes = 10.0, []
+        # ---- 两融余额 5 日变化（RZRQYE = r[5]）
+        lv = (d.get("leverage") or {})
         rows = lv.get("rows") or []
         if len(rows) >= 6:
             try:
-                bal = [float(r[-1]) for r in rows[-6:]]
+                bal = [float(r[5]) for r in rows[-6:]]     # RZRQYE 两融余额
                 chg5 = (bal[-1] / bal[0] - 1) * 100 if bal[0] > 0 else 0
                 if chg5 > 0.5: s += 5
                 elif chg5 < -1.0: s -= 5
-                notes.append("两融5日%+.2f%%" % chg5)
+                notes.append("两融余额5日%+.2f%%" % chg5)
             except Exception:
-                pass
+                notes.append("两融余额列异常")
         else:
             notes.append("两融数据不足")
+        # ---- IM/IC 当月年化基差：深度贴水（<-15%）= 机构集中对冲，扣 4 分
+        dv = d.get("derivatives") or {}
+        ann_list = []
+        for code in ("IM", "IC"):
+            fr = (dv.get("futures") or {}).get(code) or []
+            if len(fr) >= 2:
+                try:
+                    ann_list.append(float(fr[-1][4]))   # annNear 年化基差
+                except Exception:
+                    pass
+        if ann_list:
+            ann = sum(ann_list) / len(ann_list)
+            if ann < -15.0:
+                s -= 4
+                notes.append("IM/IC年化贴水%.1f%%(深贴水对冲)" % ann)
+            elif ann > 0:
+                s += 2
+                notes.append("IM/IC年化基差%+.1f%%" % ann)
+            else:
+                notes.append("IM/IC年化基差%+.1f%%" % ann)
         return max(0.0, min(20.0, s)), "；".join(notes) + " [真实公开数据]"
     except Exception:
         return 10.0, "衍生品/两融拉取失败，中性给分"
@@ -175,14 +203,41 @@ def fetch_sector_constituents(board_code, max_n=MAX_CAND_PER_SECTOR):
 
 
 def classify_setup(bars, i, limit_pct):
-    """对 T 日判定形态类型（信号函数要求 i >= 130）。返回 (setup_type, label) 或 None。"""
+    """对最新交易日（今日收盘，盘后口径）判定形态类型。
+
+    审计修正（2026-11-25）：
+    1) 只判今日 i——引擎只在盘后跑（15:20/18:00），今日数据已完整；
+       原先「先试昨日 i-1 再试今日」会让昨日信号拉进今日池子，而交易计划却按今日算，时序错位。
+    2) 形态判定前强制 _no_chase()——当日涨停/涨幅>7%/偏离MA20>12% 一律不录取。
+    3) vcp_breakout 在 S1 回测中不显著（p=0.122），降级为「观察」标记，不入正式推荐。
+    """
+    if not _no_chase(bars, i, limit_pct):
+        return None
     if sig_trend_pullback(bars, i):
         return "MA20_PULLBACK", "趋势回踩MA20低吸"
-    if sig_vcp_breakout(bars, i, limit_pct):
-        return "VCP_BREAKOUT", "波动收缩突破回踩"
     if sig_stage2_start(bars, i):
         return "STAGE2_START", "底部反转右侧启动"
+    if sig_vcp_breakout(bars, i, limit_pct):
+        return "OBSERVE_VCP", "波动收缩突破(观察)"
     return None
+
+
+def _stock_meta_from_bars(bars, limit_pct):
+    """从日线提取 hard_veto 需要的补充字段：20日均成交额(亿)、上市天数、近15日连板数。"""
+    n = len(bars)
+    if n < 25:
+        return {"amount20Yi": None, "listedDays": None, "recentBoards": None}
+    amt20 = sum(b["close"] * b["vol"] * 100 for b in bars[-20:]) / 20 / 1e8
+    listed_days = None   # 腾讯日线不提供上市日；仅当日线根数 < 180 时标记次新
+    boards = 0
+    for k in range(max(1, n - 15), n):
+        if is_limit_up_close(bars[k], bars[k - 1]["close"], limit_pct):
+            boards += 1
+    return {
+        "amount20Yi": round(amt20, 2),
+        "listedDays": n if n < 200 else 999,   # 日线不足 200 根视为上市约 <1 年
+        "recentBoards": boards,
+    }
 
 
 def build_trade_plan(bars, i, entry_px, limit_pct):
@@ -235,24 +290,36 @@ def generate_swing_picks(mode="post", top_sectors=5):
 
     max_picks = MAX_PICKS[regime["phase"]]
     # ---- 第 2~4 层：轮动板块 → 成分股排雷打分 → 形态
+    # 审计修正（2026-11-25）：
+    #  a) 板块扩围：hy top12 + gn top10 全部参与（原先 hy 只取 5 再筛阶段，启动期板块若总分排第 6 直接丢失）
+    #  b) 去掉循环内 break：全量打分排序后截断，高分板块的候补有机会参与全局排序
+    #  c) 日线先拉再 veto：hard_veto 需要 20 日均成交额/上市天数/近 15 日连板数（原先未传，成交额否决形同虚设）
     unlock = fetch_unlock_map()
-    boards = [b for b in out["sectorRotation"] if b["stage"] in ("主升期", "启动期")][:top_sectors]
+    hy = build_rotation("hy", top=12)
+    gn = build_rotation("gn", top=10)
+    all_boards = ((hy.get("boards") or []) if hy.get("ok") else []) + ((gn.get("boards") or []) if gn.get("ok") else [])
+    boards = [b for b in all_boards if b["stage"] in ("主升期", "启动期")]
     picks, errors = [], []
-    funnel = {"sectors": len(boards), "candidates": 0, "vetoed": 0, "lowVQ": 0, "noBars": 0, "noSetup": 0, "picked": 0}
+    funnel = {"sectors": len(boards), "candidates": 0, "vetoed": 0, "lowVQ": 0, "noBars": 0, "noSetup": 0, "chased": 0, "picked": 0, "observed": 0}
     veto_examples = []
     for bd in boards:
-        if len(picks) >= max_picks:
-            break
         cons = fetch_sector_constituents(bd["code"])
         for cs in cons:
-            if len(picks) >= max_picks:
-                break
             code = cs["code"]
             funnel["candidates"] += 1
             try:
+                # 1) 日线先拉：veto 与形态都需要它
+                _, _, _, limit_pct, bars = fetch_bars(code, 260)
+                if len(bars) < 150:
+                    funnel["noBars"] += 1
+                    continue
+                meta = _stock_meta_from_bars(bars, limit_pct)
+                # 2) 排雷：补齐 amount20Yi / listedDays / 连板数（原先缺参导致成交额否决失效）
                 fin = fetch_financials(code)
                 pred = fetch_predict(code)
-                vetoed, reasons = hard_veto(code, fin, pred, unlock, {"circMv": cs["circMv"]})
+                vetoed, reasons = hard_veto(code, fin, pred, unlock,
+                                             {"circMv": cs["circMv"], "amount20Yi": meta["amount20Yi"]},
+                                             listed_days=meta["listedDays"], recent_boards=meta["recentBoards"])
                 if vetoed:
                     funnel["vetoed"] += 1
                     if len(veto_examples) < 5:
@@ -262,30 +329,28 @@ def generate_swing_picks(mode="post", top_sectors=5):
                 if vq < VQ_MIN:
                     funnel["lowVQ"] += 1
                     continue
-                # 日线 + 形态（i = len(bars)，用「今天」作 T 日）
-                _, _, _, limit_pct, bars = fetch_bars(code, 260)
-                if len(bars) < 150:
-                    funnel["noBars"] += 1
-                    continue
+                # 3) 形态：只判今日收盘（盘后口径），内部强制 _no_chase
                 i = len(bars)
-                b_today = bars[-1]
-                # 禁追高：今日已收盘，形态信号对 T 日 = 今天判定（盘后口径）
-                setup = classify_setup(bars, i - 1, limit_pct)  # 用昨日作 T（今天数据可能未完整）
-                if not setup:
-                    setup = classify_setup(bars, i, limit_pct)  # 今天作 T（18:00 终选时今日已完整）
+                setup = classify_setup(bars, i, limit_pct)
                 if not setup:
                     funnel["noSetup"] += 1
                     continue
                 setup_type, setup_label = setup
+                # vcp_breakout 在 S1 不显著（p=0.122）——只作观察标记，不入正式推荐
+                is_observe = setup_type.startswith("OBSERVE_")
+                if is_observe:
+                    funnel["observed"] += 1
+                b_today = bars[-1]
                 entry_px = b_today["close"] * 1.001   # 盘后口径：以收盘价为参考入场价
                 plan = build_trade_plan(bars, i, entry_px, limit_pct)
                 picks.append({
                     "code": code, "name": cs["name"], "sector": bd["name"], "sectorStage": bd["stage"],
                     "setupType": setup_type, "setupLabel": setup_label,
+                    "observe": is_observe,
                     "totalScore": round(bd["totalScore"] * 0.4 + vq * 0.6, 1),
                     "scores": {"sector": bd["totalScore"], "fundamental": vq, "vqParts": vq_parts},
                     "fundamentals": {
-                        "circMvYi": cs["circMv"], "peTtm": cs["pe"],
+                        "circMvYi": cs["circMv"], "peTtm": cs["pe"], "amt20Yi": meta["amount20Yi"],
                         "roeTtmEst": fin.get("roeTtmEst"), "revYoy": fin.get("revYoy"), "npYoy": fin.get("npYoy"),
                         "predictTag": (pred.get("predictType") and "%s [公告口径]" % pred["predictType"]) or None,
                         "unlockSafe": code not in unlock or unlock[code]["ratio"] <= 3.0,
@@ -301,23 +366,69 @@ def generate_swing_picks(mode="post", top_sectors=5):
                     return {"ok": False, "error": "腾讯 WAF 拦截：%s" % str(e)[:120], "tradeDate": date_str, "generatedAt": now_bj.strftime("%Y-%m-%d %H:%M:%S")}
             except Exception as e:
                 errors.append({"code": code, "error": str(e)[:60]})
+    # 全量排序后截断：正式推荐取非观察的前 max_picks；观察标记附在末尾（不占正式名额）
     picks.sort(key=lambda p: -p["totalScore"])
-    funnel["picked"] = len(picks[:max_picks])
+    formal = [p for p in picks if not p.get("observe")]
+    observed = [p for p in picks if p.get("observe")][:3]
+    out["picks"] = formal[:max_picks]
+    out["observedPicks"] = observed
+    funnel["picked"] = len(out["picks"])
+    funnel["observedPicked"] = len(observed)
     out["funnel"] = funnel
     out["vetoExamples"] = veto_examples
-    out["picks"] = picks[:max_picks]
     out["candidateErrors"] = errors[:10]
-    out["note"] = "%s：推 %d/%d 只（上限 %d）" % (regime["phase"], len(out["picks"]), len(picks), max_picks)
+    out["note"] = "%s：推 %d/%d 只（上限 %d）%s" % (regime["phase"], len(out["picks"]), len(picks), max_picks,
+                                                  "，另有 %d 只观察标记" % len(observed) if observed else "")
     return out
 
 
 # ---------------------------------------------------------------- 账本
 
 TRACKER_FILE = BASE_DIR / "web" / "swing_tracker.json"
+MAX_TRACK_DAYS = 20
+
+
+def _tracker_refresh_prices(tracker):
+    """拉取账本内活跃标的的最新收盘价，刷新 lastRet 与退出状态。
+
+    状态机：已止损(收盘<=stopLoss) > 已触发保本(收盘>=breakevenTrigger) > 超时离场(daysHeld>=20) > 持仓中。
+    已终结状态（已止损/超时离场）不再刷新。
+    """
+    active = [t for t in tracker if t.get("status") not in ("已止损", "超时离场")]
+    if not active:
+        return
+    # 腾讯 L1 快照取最新价（含已收盘场景的收盘价）
+    try:
+        from auto_pick_top10 import fetch_l1_map
+        l1 = fetch_l1_map([t["code"] for t in active])
+    except Exception:
+        l1 = {}
+    for t in active:
+        q = l1.get(t["code"])
+        if not q or not q.get("price"):
+            continue
+        px = q["price"]
+        t["lastPx"] = round(px, 2)
+        if t.get("entryRef"):
+            t["lastRet"] = round((px / t["entryRef"] - 1) * 100, 2)
+        stop = t.get("stopLoss") or 0
+        be = t.get("breakevenTrigger") or 0
+        if stop and px <= stop:
+            t["status"] = "已止损"
+        elif be and px >= be:
+            t["status"] = "已触发保本"
+        elif (t.get("daysHeld") or 0) >= MAX_TRACK_DAYS:
+            t["status"] = "超时离场"
+        else:
+            t["status"] = "持仓中"
 
 
 def update_tracker(result):
-    """更新追踪账本：记录每个入选标的的入选价与当前状态（下次运行时按最新收盘刷新）。"""
+    """更新追踪账本。
+
+    幂等修正（2026-11-25 审计）：原先同一天重跑 N 次 daysHeld 就 +N（15:20 初选、18:00 终选、
+    手动刷新一天可跑 3 次）。现用 lastUpdatedDate 锁——每个标的一天只累计一次。
+    """
     tracker = []
     try:
         tracker = json.loads(TRACKER_FILE.read_text(encoding="utf-8"))
@@ -325,25 +436,31 @@ def update_tracker(result):
         tracker = []
     today = result.get("tradeDate")
     by_code = {t.get("code"): t for t in tracker if t.get("code")}
-    # 刷新旧条目状态
+    # 幂等刷新旧条目：每天首次运行才 +1 天
     for t in tracker:
-        if t.get("status") in ("已止损", "已止盈", "超时离场"):
+        if t.get("status") in ("已止损", "超时离场"):
             continue
-        # 简化：由 picks 的 tradePlan 推算，真实收盘价刷新交给 S4 前端实时联动
-        age = t.get("entryDate") != today
-        t["daysHeld"] = (t.get("daysHeld") or 0) + (1 if age else 0)
+        if t.get("lastUpdatedDate") != today:
+            t["daysHeld"] = (t.get("daysHeld") or 0) + 1
+            t["lastUpdatedDate"] = today
     # 合并今日新入选
     for p in result.get("picks") or []:
         old = by_code.get(p["code"])
         if old and old.get("entryDate") == today:
+            old["stopLoss"] = p["tradePlan"]["stopLoss"]
+            old["breakevenTrigger"] = p["tradePlan"]["breakevenTrigger"]
+            old["lastUpdatedDate"] = today
             continue
         tracker.append({
             "code": p["code"], "name": p["name"], "sector": p["sector"],
             "entryDate": today, "entryRef": p["tradePlan"]["refPrice"],
             "stopLoss": p["tradePlan"]["stopLoss"], "breakevenTrigger": p["tradePlan"]["breakevenTrigger"],
-            "setupType": p["setupType"], "status": "观察中", "daysHeld": 0, "lastRet": None,
+            "setupType": p["setupType"], "status": "观察中",
+            "daysHeld": 0, "lastRet": None, "lastUpdatedDate": today,
         })
-    # 只保留近 30 个交易日
+    # 刷新价格与状态
+    _tracker_refresh_prices(tracker)
+    # 只保留最近 120 条
     tracker = tracker[-120:]
     try:
         TRACKER_FILE.parent.mkdir(parents=True, exist_ok=True)
