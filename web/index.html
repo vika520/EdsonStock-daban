@@ -109,7 +109,7 @@
     tbody tr.row-selected td:first-child { padding-left: 8px; }
 
     /* ---------- 品牌 ---------- */
-    .brand-logo { height: 28px; width: auto; display: block; }
+    .brand-logo { height: 36px; width: auto; display: block; }
     .brand-mark { width: 34px; height: 34px; border-radius: 9px; overflow: hidden; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(232,236,243,0.1), 0 6px 16px -6px rgba(240,180,41,0.4); }
     .brand-mark svg { width: 100%; height: 100%; display: block; }
     .brand-mark .bs { stroke-dasharray: 120; animation: stroke-grow 1.4s ease-out forwards; }
@@ -189,7 +189,13 @@
     .section-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
     /* 字重纪律：中文环境（雅黑/PingFang）只有 400/700 真字重，600 会触发合成伪粗、字形膨胀变形 */
     .section-title i { color: var(--gold); }
-    .divider-gold { height: 1px; background: linear-gradient(90deg, rgba(240,180,41,0.45), transparent); }
+    /* 金色底边线：伪元素实现，不占容器高度。曾误用 height:1px 直接放在内容容器上，
+       导致容器塌陷、文字溢出与下方内容重叠（2026-11-26 用户反馈两个问题的共同根因） */
+    .divider-gold { position: relative; }
+    .divider-gold::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+      background: linear-gradient(90deg, rgba(240,180,41,0.45), transparent); pointer-events: none;
+    }
 
     /* 五档盘口量条 */
     .depth-bar { height: 6px; border-radius: 3px; transition: width .45s cubic-bezier(0.22,1,0.36,1); }
@@ -327,7 +333,7 @@
         <!-- 左：脉冲流 -->
         <div class="reveal reveal-2 lg:col-span-3 glass-card rounded-xl p-3.5 flex flex-col h-[900px]">
           <div class="flex items-center justify-between pb-2.5 mb-2.5 divider-gold">
-            <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="zap" class="w-4 h-4"></i>盘口脉冲流</h2>
+            <h2 class="section-title text-xs uppercase tracking-wider text-slate-200"><i data-lucide="zap" class="w-4 h-4"></i>盘口脉冲流</h2>
             <span class="text-[11px] mono text-slate-400" id="pulseCountBadge">0 条</span>
           </div>
           <div id="pulseFeedList" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
@@ -335,12 +341,9 @@
 
         <!-- 中：监控池 -->
         <div class="reveal reveal-3 lg:col-span-5 glass-card rounded-xl p-3.5 flex flex-col h-[900px]">
-          <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-            <div>
-              <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="activity" class="w-4 h-4"></i>连板梯队与放量监控</h2>
-              <p class="text-[11px] text-slate-500 mt-0.5">每轮轮询对比成交增量、量比、主动买卖差与封单变化</p>
-            </div>
-            <span class="badge badge-muted mono" id="tableCountBadge">--</span>
+          <div class="flex items-center justify-between gap-2 pb-2.5 mb-2 divider-gold">
+            <h2 class="section-title text-xs uppercase tracking-wider text-slate-200 min-w-0"><i data-lucide="activity" class="w-4 h-4 shrink-0"></i><span class="truncate">连板梯队与放量监控</span></h2>
+            <span class="badge badge-muted mono shrink-0" id="tableCountBadge">--</span>
           </div>
           <div class="flex-1 overflow-auto">
             <table class="w-full text-left border-collapse text-xs" style="table-layout:fixed">
@@ -371,17 +374,17 @@
 
         <!-- 右：个股盯盘 -->
         <div class="reveal reveal-4 lg:col-span-4 glass-card rounded-xl p-3.5 flex flex-col h-[900px] overflow-y-auto space-y-3">
-          <div class="flex items-start justify-between divider-gold pb-2.5">
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="text-lg font-bold text-white" id="inspName">--</h2>
-                <span class="text-xs mono text-slate-400" id="inspCode">--</span>
-                <span class="badge bg-red-500/15 text-red-300 border border-red-500/30" id="inspBoardTag">--</span>
+          <div class="flex items-start justify-between gap-3 divider-gold pb-2.5">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 min-w-0">
+                <h2 class="text-lg font-bold text-white whitespace-nowrap" id="inspName">--</h2>
+                <span class="text-xs mono text-slate-400 whitespace-nowrap" id="inspCode">--</span>
+                <span class="badge bg-red-500/15 text-red-300 border border-red-500/30 shrink-0" id="inspBoardTag">--</span>
               </div>
-              <p class="text-[11px] text-slate-500 mt-0.5" id="inspMeta">--</p>
+              <p class="text-[11px] text-slate-500 mt-0.5 truncate" id="inspMeta" title="--">--</p>
             </div>
-            <div class="text-right">
-              <div class="text-2xl font-bold mono text-red-400 tracking-tight" id="inspPrice">--</div>
+            <div class="text-right shrink-0">
+              <div class="text-2xl font-bold mono text-red-400" id="inspPrice">--</div>
               <div class="text-xs mono text-red-400" id="inspChg">--</div>
             </div>
           </div>
@@ -415,9 +418,9 @@
           </div>
 
           <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-2.5">
-            <div class="flex items-center justify-between text-[11px] mb-1.5">
-              <span class="font-medium text-slate-200">龙虎榜席位穿透</span>
-              <span class="mono text-amber-300" id="inspLhbNet">--</span>
+            <div class="flex items-center justify-between gap-2 text-[11px] mb-1.5">
+              <span class="font-medium text-slate-200 shrink-0">龙虎榜席位穿透</span>
+              <span class="mono text-amber-300 min-w-0 truncate" id="inspLhbNet" title="--">--</span>
             </div>
             <div id="inspLhbSeats" class="space-y-1 text-[11px]"></div>
           </div>
@@ -443,7 +446,7 @@
       <!-- 择时罗盘：左侧大评分环 + 右侧因子 -->
       <div class="reveal reveal-1 glass-card rounded-xl p-4">
         <div class="flex items-center justify-between pb-3 mb-3 divider-gold">
-          <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="compass" class="w-4 h-4"></i>市场择时与仓位罗盘</h2>
+          <h2 class="section-title text-xs uppercase tracking-wider text-slate-200"><i data-lucide="compass" class="w-4 h-4"></i>市场择时与仓位罗盘</h2>
           <div class="flex items-center gap-3">
             <span id="swingDataTime" class="text-[10px] text-slate-500 mono"></span>
             <button id="btnSwingRefresh" class="btn btn-ghost !py-1 !text-[11px]"><i data-lucide="refresh-cw" class="w-3 h-3"></i>重新计算</button>
@@ -488,7 +491,7 @@
       <!-- 轮动雷达 -->
       <div class="reveal reveal-2 glass-card rounded-xl p-4">
         <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-          <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="radar" class="w-4 h-4"></i>行业轮动雷达</h2>
+          <h2 class="section-title text-xs uppercase tracking-wider text-slate-200"><i data-lucide="radar" class="w-4 h-4"></i>行业轮动雷达</h2>
           <div id="swingSectorStage" class="text-[11px] text-slate-400"></div>
         </div>
         <div class="overflow-x-auto">
@@ -514,7 +517,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div class="reveal reveal-3 lg:col-span-7 glass-card rounded-xl p-4">
           <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-            <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="waves" class="w-4 h-4"></i>波段精选池</h2>
+            <h2 class="section-title text-xs uppercase tracking-wider text-slate-200"><i data-lucide="waves" class="w-4 h-4"></i>波段精选池</h2>
             <span id="swingPicksCount" class="text-[10px] text-slate-400"></span>
           </div>
           <div id="swingPicksEmpty" class="py-10 text-center text-xs text-slate-500 hidden"></div>
@@ -535,7 +538,7 @@
         </div>
         <div class="reveal reveal-4 lg:col-span-5 glass-card rounded-xl p-4">
           <div class="flex items-center justify-between pb-2.5 mb-3 divider-gold">
-            <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="crosshair" class="w-4 h-4"></i>交易计划</h2>
+            <h2 class="section-title text-xs uppercase tracking-wider text-slate-200"><i data-lucide="crosshair" class="w-4 h-4"></i>交易计划</h2>
             <span id="swingPlanCode" class="text-[11px] text-slate-400 mono"></span>
           </div>
           <div id="swingPlanBox" class="space-y-2.5"></div>
@@ -545,7 +548,7 @@
       <!-- 账本 -->
       <div class="reveal reveal-5 glass-card rounded-xl p-4">
         <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-          <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="notebook-pen" class="w-4 h-4"></i>信号追踪账本</h2>
+          <h2 class="section-title text-xs uppercase tracking-wider text-slate-200"><i data-lucide="notebook-pen" class="w-4 h-4"></i>信号追踪账本</h2>
           <span id="swingTrackerCount" class="text-[10px] text-slate-400"></span>
         </div>
         <div class="overflow-x-auto max-h-56 overflow-y-auto">
@@ -2263,12 +2266,14 @@
       document.getElementById("inspName").textContent = s.name;
       document.getElementById("inspCode").textContent = s.prefix.toUpperCase();
       document.getElementById("inspBoardTag").textContent = s.boardLabel;
-      document.getElementById("inspMeta").textContent = `板块: ${s.sector} | 成交额: ${s.amountYi}亿 | 炸板: ${s.brokenCount}次 | 流通市值: ${s.circMv}亿`;
+      const _metaEl = document.getElementById("inspMeta");
+      _metaEl.textContent = `板块: ${s.sector} | 成交额: ${s.amountYi}亿 | 炸板: ${s.brokenCount}次 | 流通市值: ${s.circMv}亿`;
+      _metaEl.title = _metaEl.textContent;
 
       const priceEl = document.getElementById("inspPrice");
       const chgEl = document.getElementById("inspChg");
       priceEl.textContent = s.price.toFixed(2);
-      chgEl.textContent = `${s.chg >= 0 ? '+' : ''}${s.chg.toFixed(2)}% (竞价 ${s.openGap >= 0 ? '+' : ''}${s.openGap.toFixed(2)}%)`;
+      chgEl.innerHTML = `${s.chg >= 0 ? '+' : ''}${s.chg.toFixed(2)}% <span class="block text-[10px] text-slate-500 mt-0.5">竞价 ${s.openGap >= 0 ? '+' : ''}${s.openGap.toFixed(2)}%</span>`;
       priceEl.className = `text-lg font-bold mono ${s.chg >= 0 ? 'text-red-400' : 'text-emerald-400'}`;
       chgEl.className = `text-xs mono ${s.chg >= 0 ? 'text-red-400' : 'text-emerald-400'}`;
 
@@ -2315,10 +2320,12 @@
       document.getElementById("inspBids").innerHTML = bidsHtml.join("");
 
       // 龙虎榜席位
-      document.getElementById("inspLhbNet").textContent = s.lhbSummary;
+      const _netEl = document.getElementById("inspLhbNet");
+      _netEl.textContent = s.lhbSummary;
+      _netEl.title = s.lhbSummary;
       document.getElementById("inspLhbSeats").innerHTML = s.lhbSeats.map(st => `
         <div class="p-1.5 rounded bg-slate-900/90 border border-slate-800/80 flex items-center justify-between gap-2">
-          <div class="truncate">
+          <div class="min-w-0 truncate">
             <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] mr-1">${escapeHtml(st.tag)}</span>
             <span class="text-slate-300">${escapeHtml(st.dept)}</span>
           </div>
