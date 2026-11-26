@@ -2571,6 +2571,9 @@
     const _swingPriceMap = {};   // code -> {price, chg}（腾讯实时）
 
     async function loadSwingPicks(forceRefresh = false) {
+      // 返回 "api"（后端实时计算）/ "file"（只重读了静态 JSON，未真正重算）/ null（失败）
+      // 2026-11-26 修复：线上是 Cloudflare Pages 静态站，/api/* 必然 404，原先降级读静态文件后
+      // 仍弹「已重新计算」——是假成功提示，用户看到的就是「点了没反应」。
       const urls = forceRefresh
         ? ["/api/swing_picks?refresh=1", "./swing_picks.json?_t=" + Date.now()]
         : ["/api/swing_picks", "./swing_picks.json?_t=" + Date.now()];
@@ -2581,15 +2584,21 @@
           const data = await res.json();
           if (data && data.ok && data.regime) {
             _swingData = data;
+            _lastSwingGen = data.generatedAt || "";
             renderSwingAll();
-            return true;
+            return u.startsWith("/api/") ? "api" : "file";
           }
         } catch (e) {}
       }
       const box = document.getElementById("swingRegimePhase");
       if (box) box.textContent = "加载失败";
-      return false;
+      return null;
     }
+
+    // 线上静态站（Cloudflare Pages）没有 Python 后端，/api/* 必然 404：
+    // 「重新计算」只能由①本地 live_signal_server.py 的 /api 真实重算，或②GitHub Actions 定时/手动触发。
+    // 静态站上按钮点击后给诚实提示并提供直达 Actions 的链接，不再假报「已重新计算」。
+    const GITHUB_ACTIONS_URL = "https://github.com/vika520/EdsonStock-daban/actions/workflows/swing-picks.yml";
 
     function swingPhaseColor(phase) {
       if (phase === "进攻期") return "text-red-400";
@@ -2766,7 +2775,7 @@
 
     // 注意：替换池子时保留用户手动添加的自选股（_custom），否则后台一次刷新就把自选冲掉
     let _lastPicksGeneratedAt = "";
-    async function loadDailyAutoPicks(mode = "post", forceRefresh = false, silent = false) {
+    async function loadDailyAutoPicks(mode = "post", forceRefresh = false, silent = false, _opts = {}) {
       const urls = forceRefresh
         ? [`/api/daily_picks?refresh=1&mode=${mode}`, `./daily_picks.json?_t=${Date.now()}`]
         : [`/api/daily_picks?mode=${mode}`, `./daily_picks.json?_t=${Date.now()}`];
@@ -2777,6 +2786,7 @@
           if (!res.ok) continue;
           const data = await res.json();
           if (data && Array.isArray(data.picks) && data.picks.length > 0) {
+            _opts._src = u.startsWith("/api/") ? "api" : "file";   // 数据来源：api=后端实时 / file=静态文件
             // 热更新去重：generatedAt 未变化则不重载（避免每 60s 重建 DOM 抖动）
             const gen = String(data.generatedAt || "");
             if (!forceRefresh && gen && gen === _lastPicksGeneratedAt) return false;
@@ -2828,7 +2838,8 @@
                 showToast(`盯盘池已热更新 (${modeLabel})：新增 ${newCodes.length} 只，移除 ${goneCodes.length} 只`);
               }
             }
-            if (forceRefresh) {
+            if (forceRefresh && _opts._src !== "file") {
+              // 静态站（_src==="file"）不弹这句——数据只是重读，没有真正重算（2026-11-26）
               showToast(`已按四维游资选股法则完成 ${modeLabel} Top 10 自动更新！`);
             }
             return true;
@@ -2976,8 +2987,35 @@
 
       // 同步 GitHub Raw
       document.getElementById("btnSyncGithub").addEventListener("click", syncFromGithubRaw);
-      document.getElementById("btnAutoPickPost").addEventListener("click", () => loadDailyAutoPicks("post", true));
-      document.getElementById("btnAutoPickAuction").addEventListener("click", () => loadDailyAutoPicks("auction", true));
+      // 2026-11-26：手动重选先探测后端是否存活。线上是静态站，/api 必然 404——
+      // 原先静默降级重读静态 JSON，既不提示也没真正重算，点了等于没点。
+      const GITHUB_ACTIONS_DAILY_URL = "https://github.com/vika520/EdsonStock-daban/actions/workflows/daily-picks.yml";
+      async function _apiAlive() {
+        try {
+          const r = await fetch("/api/daily_picks?mode=post", { cache: "no-store" });
+          if (!r.ok) return false;
+          const ct = r.headers.get("content-type") || "";
+          return ct.includes("json");
+        } catch (e) { return false; }
+      }
+      async function _manualRepick(mode, label) {
+        const alive = await _apiAlive();
+        const opts = {};
+        await loadDailyAutoPicks(mode, true, false, opts);
+        if (alive && opts._src === "api") return;   // 内部已弹真实成功提示
+        if (opts._src === "file") {
+          showToast("当前为静态站，无法在此直接重算 · 已同步最新数据");
+          setTimeout(() => {
+            if (confirm(`线上页面没有计算后端，刚才只是同步了 GitHub 上的最新结果，并没有执行「${label}」。\n\n要真正重算，请在 GitHub Actions 手动触发（约 1 分钟后自动同步到这里）。\n\n现在前往 Actions 页面吗？`)) {
+              window.open(GITHUB_ACTIONS_DAILY_URL, "_blank");
+            }
+          }, 400);
+          return;
+        }
+        showToast(`${label}失败：数据未生成`);
+      }
+      document.getElementById("btnAutoPickPost").addEventListener("click", () => _manualRepick("post", "盘后重选"));
+      document.getElementById("btnAutoPickAuction").addEventListener("click", () => _manualRepick("auction", "竞价重排"));
       loadDailyAutoPicks("post", false);
 
       // 右侧面板一键推送当前标的到 Webhook
@@ -3029,9 +3067,30 @@
       });
 
       // ==================== 波段 Tab 初始化 ====================
-      // 手动「重新计算」：走后端 ?refresh=1（有后端时）或本地静态 JSON
+      // 手动「重新计算」：诚实区分三种结果（2026-11-26 修复假成功提示）
       document.getElementById("btnSwingRefresh").addEventListener("click", () => {
-        loadSwingPicks(true).then(ok => showToast(ok ? "波段选股已重新计算" : "波段数据刷新失败：后端不可用或数据未生成"));
+        const btn = document.getElementById("btnSwingRefresh");
+        btn.disabled = true;
+        const old = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> 计算中…';
+        loadSwingPicks(true).then(src => {
+          btn.disabled = false;
+          btn.innerHTML = old;
+          if (typeof lucide !== "undefined") lucide.createIcons();
+          if (src === "api") {
+            showToast("波段选股已重新计算（后端实时）");
+          } else if (src === "file") {
+            // 静态站：只重读了 GitHub 上的文件，没有真正重算
+            showToast("当前为静态站，无法在此直接重算 · 已同步最新数据");
+            setTimeout(() => {
+              if (confirm("线上页面没有计算后端，刚才只是同步了 GitHub 上的最新结果，并没有重新计算。\n\n要真正重算，请在 GitHub Actions 手动触发（约 1 分钟后自动同步到这里）。\n\n现在前往 Actions 页面吗？")) {
+                window.open(GITHUB_ACTIONS_URL, "_blank");
+              }
+            }, 400);
+          } else {
+            showToast("波段数据刷新失败：后端不可用或数据未生成");
+          }
+        });
       });
       // 初始加载（静态模式也能渲染）
       loadSwingPicks(false);
