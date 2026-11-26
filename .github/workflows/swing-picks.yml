@@ -1,10 +1,11 @@
 name: 波段选股 (Swing Picks)
 
 on:
-  schedule:
-    # UTC 07:25 / 10:05 = 北京 15:25 / 18:05（比本地服务晚 5 分钟，兜底防本地挂掉）
-    - cron: '25 7 * * 1-5'
-    - cron: '5 10 * * 1-5'
+  # 2026-11-26：schedule 已停用——调度迁移至 NAS crontab（15:26 / 18:06），避免延迟运行覆盖 NAS 结果。
+  # workflow_dispatch 保留作异地手动兜底。
+  # schedule:
+  #   - cron: '25 7 * * 1-5'
+  #   - cron: '5 10 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
