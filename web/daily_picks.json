@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generatedAt": "2026-11-26 14:10:38",
+  "generatedAt": "2026-11-26 14:19:36",
   "generatedAtTz": "Asia/Shanghai (UTC+8)",
   "auctionNote": "",
   "tradeDate": 20261126,
@@ -9,15 +9,15 @@
   "riskAnchors": [],
   "mode": "post",
   "cycle": {
-    "phase": "主线发酵/良性轮动期",
+    "phase": "高位强分歧期",
     "cold": false,
     "hot": false,
     "dataReady": true,
-    "ztCount": 58,
+    "ztCount": 51,
     "dtCount": 5,
-    "zbCount": 31,
-    "sentimentDate": "",
-    "sentimentSource": "unavailable",
+    "zbCount": 38,
+    "sentimentDate": "20261125",
+    "sentimentSource": "cache(C:\\Users\\Admin\\.cache\\edsonstock\\extras.json)",
     "quotas": {
       "high": 2,
       "firstYin": 0,
@@ -30,16 +30,16 @@
     "vetoedByLhb": []
   },
   "marketSummary": {
-    "phase": "主线发酵/良性轮动期",
-    "ztCount": 58,
-    "zbCount": 31,
+    "phase": "高位强分歧期",
+    "ztCount": 51,
+    "zbCount": 38,
     "dtCount": 5,
-    "zbRate": 34.8,
+    "zbRate": 42.7,
     "maxBoard": 5,
     "topSectors": [
       {
         "name": "元件",
-        "count": 5
+        "count": 4
       },
       {
         "name": "化学制品",
@@ -75,42 +75,42 @@
       "boardLabel": "5连板高标",
       "effBoards": 5.0,
       "signalType": "BROKEN_WARN",
-      "signalTag": "首封09:31:14·封成比8.3%·封流比2.01%·炸3次 · 黄金换手",
+      "signalTag": "首封09:31:14·封成比7.6%·封流比1.85%·炸3次 · 黄金换手",
       "price": 20.46,
       "preClose": 18.6,
       "open": 20.2,
       "openGap": 8.6,
       "chg": 10.0,
-      "volHand": 644178,
+      "volHand": 644882,
       "outerVol": 308364,
-      "innerVol": 335803,
-      "activeDiff": -27439,
+      "innerVol": 336517,
+      "activeDiff": -28153,
       "deltaHands": 0,
       "firstSeal": "09:31:14",
       "brokenCount": 3,
-      "sealYi": 1.01,
-      "amountYi": 12.95,
-      "sealRatio": 7.8,
-      "sealFlowRatio": 1.88,
-      "sealMvRatio": 1.88,
+      "sealYi": 0.99,
+      "amountYi": 12.97,
+      "sealRatio": 7.6,
+      "sealFlowRatio": 1.85,
+      "sealMvRatio": 1.85,
       "circMv": 53.65,
-      "turnover": 24.57,
-      "volRatio": 20.67,
+      "turnover": 24.6,
+      "volRatio": 19.86,
       "limitUp": 20.46,
       "limitDown": 16.74,
-      "quoteTime": "20261126141120",
+      "quoteTime": "20261126141917",
       "bids": [
         [
           20.46,
-          49602
+          48370
         ],
         [
           20.45,
-          199
+          75
         ],
         [
           20.44,
-          10
+          24
         ],
         [
           20.43,
@@ -118,7 +118,7 @@
         ],
         [
           20.42,
-          22
+          34
         ]
       ],
       "asks": [
@@ -143,25 +143,25 @@
           0
         ]
       ],
-      "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 146.2 分",
+      "lhbSummary": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级 · 量化评分 144.4 分",
       "lhbSeats": [
         {
           "side": "选股",
           "tag": "5连板高标",
           "dept": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级",
-          "net": "封单1.08亿"
+          "net": "封单0.99亿"
         },
         {
           "side": "共振",
           "tag": "汽车零部",
           "dept": "所属板块当日涨停 3 家 · 首封 09:31:14",
-          "net": "封成比8.3%"
+          "net": "封成比7.6%"
         }
       ],
       "scoreParts": {
         "board": 110.0,
-        "sealRatio": 6.6,
-        "sealFlow": 16.1,
+        "sealRatio": 6.1,
+        "sealFlow": 14.8,
         "sector": 0.0,
         "early": 12.0,
         "lhb": 0.0,
@@ -170,12 +170,12 @@
         "brokenPenalty": -13.5
       },
       "backtest": {
-        "wtsRet": "量化评分 146.2",
+        "wtsRet": "量化评分 144.4",
         "wtsMdd": "首封 09:31:14",
         "wtsSharpe": "5连板",
         "wtsWin": "板块涨停 3 家",
-        "mrRet": "封单 1.08亿",
-        "boRet": "封成比 8.3% / 封流比 2.01%",
+        "mrRet": "封单 0.99亿",
+        "boRet": "封成比 7.6% / 封流比 1.85%",
         "note": "维度1[最高空间板]：5连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
       }
     },
@@ -188,46 +188,46 @@
       "boardLabel": "3连板高标",
       "effBoards": 3.0,
       "signalType": "WEAK_TO_STRONG",
-      "signalTag": "首封09:25:00·封成比860.0%·封流比12.81%·炸0次 · 缩量一字",
+      "signalTag": "首封09:25:00·封成比868.0%·封流比12.92%·炸0次 · 缩量一字",
       "price": 7.81,
       "preClose": 7.1,
       "open": 7.81,
       "openGap": 10.0,
       "chg": 10.0,
-      "volHand": 31470,
+      "volHand": 31491,
       "outerVol": 0,
-      "innerVol": 31470,
-      "activeDiff": -31470,
+      "innerVol": 31491,
+      "activeDiff": -31491,
       "deltaHands": 0,
       "firstSeal": "09:25:00",
       "brokenCount": 0,
-      "sealYi": 2.16,
+      "sealYi": 2.17,
       "amountYi": 0.25,
-      "sealRatio": 864.0,
-      "sealFlowRatio": 12.86,
-      "sealMvRatio": 12.86,
+      "sealRatio": 868.0,
+      "sealFlowRatio": 12.92,
+      "sealMvRatio": 12.92,
       "circMv": 16.79,
-      "turnover": 1.46,
-      "volRatio": 0.41,
+      "turnover": 1.47,
+      "volRatio": 0.39,
       "limitUp": 7.81,
       "limitDown": 6.39,
-      "quoteTime": "20261126141118",
+      "quoteTime": "20261126141918",
       "bids": [
         [
           7.81,
-          277106
+          277460
         ],
         [
           7.8,
-          1506
+          1682
         ],
         [
           7.79,
-          106
+          61
         ],
         [
           7.78,
-          149
+          117
         ],
         [
           7.77,
@@ -262,13 +262,13 @@
           "side": "选股",
           "tag": "3连板高标",
           "dept": "维度1[最高空间板]：3连板市场高度标杆，次日重点观察竞价弱转强或换手晋级",
-          "net": "封单2.15亿"
+          "net": "封单2.17亿"
         },
         {
           "side": "共振",
           "tag": "化学制药",
           "dept": "所属板块当日涨停 1 家 · 首封 09:25:00",
-          "net": "封成比860.0%"
+          "net": "封成比868.0%"
         }
       ],
       "scoreParts": {
@@ -287,122 +287,9 @@
         "wtsMdd": "首封 09:25:00",
         "wtsSharpe": "3连板",
         "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 2.15亿",
-        "boRet": "封成比 860.0% / 封流比 12.81%",
+        "mrRet": "封单 2.17亿",
+        "boRet": "封成比 868.0% / 封流比 12.92%",
         "note": "维度1[最高空间板]：3连板市场高度标杆，次日重点观察竞价弱转强或换手晋级"
-      }
-    },
-    {
-      "code": "301041",
-      "prefix": "sz301041",
-      "name": "金百泽",
-      "sector": "元件",
-      "boards": 1,
-      "boardLabel": "1板·主线卡位",
-      "effBoards": 1.8,
-      "signalType": "HIGH_SEAL",
-      "signalTag": "元件主线·首封10:07:27·封成比28.4%·封流比4.46% · 黄金换手",
-      "price": 28.37,
-      "preClose": 23.64,
-      "open": 24.14,
-      "openGap": 2.12,
-      "chg": 20.01,
-      "volHand": 136585,
-      "outerVol": 61809,
-      "innerVol": 72711,
-      "activeDiff": -10902,
-      "deltaHands": 0,
-      "firstSeal": "10:07:27",
-      "brokenCount": 0,
-      "sealYi": 0.36,
-      "amountYi": 3.65,
-      "sealRatio": 9.9,
-      "sealFlowRatio": 1.61,
-      "sealMvRatio": 1.61,
-      "circMv": 22.41,
-      "turnover": 17.29,
-      "volRatio": 1.71,
-      "limitUp": 28.37,
-      "limitDown": 18.91,
-      "quoteTime": "20261126141118",
-      "bids": [
-        [
-          28.37,
-          12630
-        ],
-        [
-          28.36,
-          63
-        ],
-        [
-          28.34,
-          6
-        ],
-        [
-          28.31,
-          2
-        ],
-        [
-          28.3,
-          5
-        ]
-      ],
-      "asks": [
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ],
-        [
-          0.0,
-          0
-        ]
-      ],
-      "lhbSummary": "维度2[主线高封成比卡位]：元件板块(5家涨停)前排身位，封单1.00亿/封成比28.4%/封流比4.46% · 量化评分 128.0 分",
-      "lhbSeats": [
-        {
-          "side": "选股",
-          "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：元件板块(5家涨停)前排身位，封单1.00亿/封成比28.4%/封流比4.46%",
-          "net": "封单1.00亿"
-        },
-        {
-          "side": "共振",
-          "tag": "元件",
-          "dept": "所属板块当日涨停 5 家 · 首封 10:07:27",
-          "net": "封成比28.4%"
-        }
-      ],
-      "scoreParts": {
-        "board": 39.6,
-        "sealRatio": 22.7,
-        "sealFlow": 35.7,
-        "sector": 15.0,
-        "early": 0.0,
-        "lhb": 0.0,
-        "turnover": 15.0,
-        "quantPenalty": 0.0,
-        "brokenPenalty": 0.0
-      },
-      "backtest": {
-        "wtsRet": "量化评分 128.0",
-        "wtsMdd": "首封 10:07:27",
-        "wtsSharpe": "1连板",
-        "wtsWin": "板块涨停 5 家",
-        "mrRet": "封单 1.00亿",
-        "boRet": "封成比 28.4% / 封流比 4.46%",
-        "note": "维度2[主线高封成比卡位]：元件板块(5家涨停)前排身位，封单1.00亿/封成比28.4%/封流比4.46%"
       }
     },
     {
@@ -414,108 +301,108 @@
       "boardLabel": "1板·主线卡位",
       "effBoards": 1.0,
       "signalType": "HIGH_SEAL",
-      "signalTag": "通用设备主线·首封13:13:54·封成比33.1%·封流比3.68% · 黄金换手",
-      "price": 14.0,
+      "signalTag": "通用设备主线·首封13:13:54·封成比24.5%·封流比3.41% · 黄金换手",
+      "price": 14.15,
       "preClose": 12.86,
       "open": 13.24,
       "openGap": 2.95,
-      "chg": 8.86,
-      "volHand": 322344,
-      "outerVol": 155211,
-      "innerVol": 166341,
-      "activeDiff": -11130,
+      "chg": 10.03,
+      "volHand": 363810,
+      "outerVol": 177458,
+      "innerVol": 179150,
+      "activeDiff": -1692,
       "deltaHands": 0,
       "firstSeal": "13:13:54",
-      "brokenCount": 0,
-      "sealYi": 0.0,
-      "amountYi": 4.36,
-      "sealRatio": 0.0,
-      "sealFlowRatio": 0.0,
-      "sealMvRatio": 0.0,
-      "circMv": 35.06,
-      "turnover": 12.87,
-      "volRatio": 0.92,
+      "brokenCount": 1,
+      "sealYi": 1.21,
+      "amountYi": 4.94,
+      "sealRatio": 24.5,
+      "sealFlowRatio": 3.41,
+      "sealMvRatio": 3.41,
+      "circMv": 35.44,
+      "turnover": 14.53,
+      "volRatio": 1.0,
       "limitUp": 14.15,
       "limitDown": 11.57,
-      "quoteTime": "20261126141118",
+      "quoteTime": "20261126141918",
       "bids": [
         [
-          13.96,
-          44
+          14.15,
+          85380
         ],
         [
-          13.94,
-          73
+          14.14,
+          7
         ],
         [
-          13.93,
-          46
+          14.13,
+          25
         ],
         [
-          13.92,
-          213
+          14.1,
+          2
         ],
         [
-          13.91,
-          3
+          14.09,
+          5
         ]
       ],
       "asks": [
         [
-          14.0,
-          49
+          0.0,
+          0
         ],
         [
-          14.01,
-          16
+          0.0,
+          0
         ],
         [
-          14.02,
-          5
+          0.0,
+          0
         ],
         [
-          14.04,
-          170
+          0.0,
+          0
         ],
         [
-          14.05,
-          32
+          0.0,
+          0
         ]
       ],
-      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单1.29亿/封成比33.1%/封流比3.68% · 量化评分 107.9 分",
+      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单1.21亿/封成比24.5%/封流比3.41% · 量化评分 94.4 分",
       "lhbSeats": [
         {
           "side": "选股",
           "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单1.29亿/封成比33.1%/封流比3.68%",
-          "net": "封单1.29亿"
+          "dept": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单1.21亿/封成比24.5%/封流比3.41%",
+          "net": "封单1.21亿"
         },
         {
           "side": "共振",
           "tag": "通用设备",
           "dept": "所属板块当日涨停 4 家 · 首封 13:13:54",
-          "net": "封成比33.1%"
+          "net": "封成比24.5%"
         }
       ],
       "scoreParts": {
         "board": 22.0,
-        "sealRatio": 26.5,
-        "sealFlow": 29.4,
+        "sealRatio": 19.6,
+        "sealFlow": 27.3,
         "sector": 15.0,
         "early": 0.0,
         "lhb": 0.0,
         "turnover": 15.0,
         "quantPenalty": 0.0,
-        "brokenPenalty": 0.0
+        "brokenPenalty": -4.5
       },
       "backtest": {
-        "wtsRet": "量化评分 107.9",
+        "wtsRet": "量化评分 94.4",
         "wtsMdd": "首封 13:13:54",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 4 家",
-        "mrRet": "封单 1.29亿",
-        "boRet": "封成比 33.1% / 封流比 3.68%",
-        "note": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单1.29亿/封成比33.1%/封流比3.68%"
+        "mrRet": "封单 1.21亿",
+        "boRet": "封成比 24.5% / 封流比 3.41%",
+        "note": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单1.21亿/封成比24.5%/封流比3.41%"
       }
     },
     {
@@ -527,50 +414,50 @@
       "boardLabel": "1板·主线卡位",
       "effBoards": 1.0,
       "signalType": "HIGH_SEAL",
-      "signalTag": "化学制品主线·首封10:47:27·封成比41.0%·封流比3.17% · 黄金换手",
+      "signalTag": "化学制品主线·首封10:47:27·封成比40.4%·封流比3.14% · 黄金换手",
       "price": 4.46,
       "preClose": 4.05,
       "open": 4.13,
       "openGap": 1.98,
       "chg": 10.12,
-      "volHand": 523761,
+      "volHand": 525919,
       "outerVol": 276873,
-      "innerVol": 246883,
-      "activeDiff": 29990,
+      "innerVol": 249041,
+      "activeDiff": 27832,
       "deltaHands": 0,
       "firstSeal": "10:47:27",
       "brokenCount": 0,
-      "sealYi": 0.91,
-      "amountYi": 2.22,
-      "sealRatio": 41.0,
-      "sealFlowRatio": 3.17,
-      "sealMvRatio": 3.17,
+      "sealYi": 0.9,
+      "amountYi": 2.23,
+      "sealRatio": 40.4,
+      "sealFlowRatio": 3.14,
+      "sealMvRatio": 3.14,
       "circMv": 28.68,
-      "turnover": 8.14,
-      "volRatio": 1.05,
+      "turnover": 8.18,
+      "volRatio": 1.02,
       "limitUp": 4.46,
       "limitDown": 3.65,
-      "quoteTime": "20261126141121",
+      "quoteTime": "20261126141915",
       "bids": [
         [
           4.46,
-          204157
+          202836
         ],
         [
           4.45,
-          911
+          586
         ],
         [
           4.44,
-          7
+          8
         ],
         [
           4.43,
-          23
+          80
         ],
         [
           4.42,
-          995
+          1025
         ]
       ],
       "asks": [
@@ -595,25 +482,25 @@
           0
         ]
       ],
-      "lhbSummary": "维度2[主线高封成比卡位]：化学制品板块(4家涨停)前排身位，封单0.91亿/封成比41.0%/封流比3.17% · 量化评分 110.2 分",
+      "lhbSummary": "维度2[主线高封成比卡位]：化学制品板块(4家涨停)前排身位，封单0.90亿/封成比40.4%/封流比3.14% · 量化评分 109.4 分",
       "lhbSeats": [
         {
           "side": "选股",
           "tag": "1板·主线卡位",
-          "dept": "维度2[主线高封成比卡位]：化学制品板块(4家涨停)前排身位，封单0.91亿/封成比41.0%/封流比3.17%",
-          "net": "封单0.91亿"
+          "dept": "维度2[主线高封成比卡位]：化学制品板块(4家涨停)前排身位，封单0.90亿/封成比40.4%/封流比3.14%",
+          "net": "封单0.90亿"
         },
         {
           "side": "共振",
           "tag": "化学制品",
           "dept": "所属板块当日涨停 4 家 · 首封 10:47:27",
-          "net": "封成比41.0%"
+          "net": "封成比40.4%"
         }
       ],
       "scoreParts": {
         "board": 22.0,
-        "sealRatio": 32.8,
-        "sealFlow": 25.4,
+        "sealRatio": 32.3,
+        "sealFlow": 25.1,
         "sector": 15.0,
         "early": 0.0,
         "lhb": 0.0,
@@ -622,13 +509,126 @@
         "brokenPenalty": 0.0
       },
       "backtest": {
-        "wtsRet": "量化评分 110.2",
+        "wtsRet": "量化评分 109.4",
         "wtsMdd": "首封 10:47:27",
         "wtsSharpe": "1连板",
         "wtsWin": "板块涨停 4 家",
-        "mrRet": "封单 0.91亿",
-        "boRet": "封成比 41.0% / 封流比 3.17%",
-        "note": "维度2[主线高封成比卡位]：化学制品板块(4家涨停)前排身位，封单0.91亿/封成比41.0%/封流比3.17%"
+        "mrRet": "封单 0.90亿",
+        "boRet": "封成比 40.4% / 封流比 3.14%",
+        "note": "维度2[主线高封成比卡位]：化学制品板块(4家涨停)前排身位，封单0.90亿/封成比40.4%/封流比3.14%"
+      }
+    },
+    {
+      "code": "000530",
+      "prefix": "sz000530",
+      "name": "冰山冷热",
+      "sector": "通用设备",
+      "boards": 1,
+      "boardLabel": "1板·主线卡位",
+      "effBoards": 1.0,
+      "signalType": "HIGH_SEAL",
+      "signalTag": "通用设备主线·首封11:23:18·封成比9.8%·封流比2.73%",
+      "price": 16.17,
+      "preClose": 14.7,
+      "open": 14.56,
+      "openGap": -0.95,
+      "chg": 10.0,
+      "volHand": 1741225,
+      "outerVol": 899045,
+      "innerVol": 842170,
+      "activeDiff": 56875,
+      "deltaHands": 0,
+      "firstSeal": "11:23:18",
+      "brokenCount": 0,
+      "sealYi": 2.65,
+      "amountYi": 27.13,
+      "sealRatio": 9.8,
+      "sealFlowRatio": 2.73,
+      "sealMvRatio": 2.73,
+      "circMv": 97.04,
+      "turnover": 29.01,
+      "volRatio": 0.92,
+      "limitUp": 16.17,
+      "limitDown": 13.23,
+      "quoteTime": "20261126141918",
+      "bids": [
+        [
+          16.17,
+          163870
+        ],
+        [
+          16.16,
+          1287
+        ],
+        [
+          16.15,
+          135
+        ],
+        [
+          16.14,
+          2
+        ],
+        [
+          16.13,
+          63
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单2.65亿/封成比9.8%/封流比2.73% · 量化评分 66.7 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "1板·主线卡位",
+          "dept": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单2.65亿/封成比9.8%/封流比2.73%",
+          "net": "封单2.65亿"
+        },
+        {
+          "side": "共振",
+          "tag": "通用设备",
+          "dept": "所属板块当日涨停 4 家 · 首封 11:23:18",
+          "net": "封成比9.8%"
+        }
+      ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 7.8,
+        "sealFlow": 21.8,
+        "sector": 15.0,
+        "early": 0.0,
+        "lhb": 0.0,
+        "turnover": 0.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": 0.0
+      },
+      "backtest": {
+        "wtsRet": "量化评分 66.7",
+        "wtsMdd": "首封 11:23:18",
+        "wtsSharpe": "1连板",
+        "wtsWin": "板块涨停 4 家",
+        "mrRet": "封单 2.65亿",
+        "boRet": "封成比 9.8% / 封流比 2.73%",
+        "note": "维度2[主线高封成比卡位]：通用设备板块(4家涨停)前排身位，封单2.65亿/封成比9.8%/封流比2.73%"
       }
     },
     {
@@ -640,50 +640,50 @@
       "boardLabel": "2连板精选",
       "effBoards": 2.0,
       "signalType": "WEAK_TO_STRONG",
-      "signalTag": "首封09:30:09·封单4.59亿·封流比33.38% · 黄金换手",
+      "signalTag": "首封09:30:09·封单4.58亿·封流比33.31% · 黄金换手",
       "price": 9.99,
       "preClose": 9.08,
       "open": 9.55,
       "openGap": 5.18,
       "chg": 10.02,
-      "volHand": 181479,
+      "volHand": 182111,
       "outerVol": 28799,
-      "innerVol": 152670,
-      "activeDiff": -123871,
+      "innerVol": 153212,
+      "activeDiff": -124413,
       "deltaHands": 0,
       "firstSeal": "09:30:09",
       "brokenCount": 2,
-      "sealYi": 4.59,
-      "amountYi": 1.8,
-      "sealRatio": 255.0,
-      "sealFlowRatio": 33.38,
-      "sealMvRatio": 33.38,
+      "sealYi": 4.58,
+      "amountYi": 1.81,
+      "sealRatio": 253.0,
+      "sealFlowRatio": 33.31,
+      "sealMvRatio": 33.31,
       "circMv": 13.75,
-      "turnover": 13.18,
-      "volRatio": 4.05,
+      "turnover": 13.23,
+      "volRatio": 3.9,
       "limitUp": 9.99,
       "limitDown": 8.17,
-      "quoteTime": "20261126141118",
+      "quoteTime": "20261126141918",
       "bids": [
         [
           9.99,
-          459096
+          458849
         ],
         [
           9.98,
-          997
+          1108
         ],
         [
           9.97,
-          43
+          55
         ],
         [
           9.96,
-          41
+          16
         ],
         [
           9.95,
-          146
+          154
         ]
       ],
       "asks": [
@@ -714,13 +714,13 @@
           "side": "选股",
           "tag": "2连板精选",
           "dept": "维度2[综合量化高分]：连板梯队、封成比、封流比与换手率综合评分前列",
-          "net": "封单4.59亿"
+          "net": "封单4.58亿"
         },
         {
           "side": "共振",
           "tag": "纺织制造",
           "dept": "所属板块当日涨停 1 家 · 首封 09:30:09",
-          "net": "封成比255.0%"
+          "net": "封成比253.0%"
         }
       ],
       "scoreParts": {
@@ -739,64 +739,64 @@
         "wtsMdd": "首封 09:30:09",
         "wtsSharpe": "2连板",
         "wtsWin": "板块涨停 1 家",
-        "mrRet": "封单 4.59亿",
-        "boRet": "封成比 255.0% / 封流比 33.38%",
+        "mrRet": "封单 4.58亿",
+        "boRet": "封成比 253.0% / 封流比 33.31%",
         "note": "维度2[综合量化高分]：连板梯队、封成比、封流比与换手率综合评分前列"
       }
     },
     {
-      "code": "603030",
-      "prefix": "sh603030",
-      "name": "全筑股份",
-      "sector": "装修装饰",
-      "boards": 3,
-      "boardLabel": "3板·强分歧回封",
-      "effBoards": 3.0,
-      "signalType": "BROKEN_WARN",
-      "signalTag": "盘中炸板2次·换手24.3% · 黄金换手",
-      "price": 2.87,
-      "preClose": 2.61,
-      "open": 2.72,
-      "openGap": 4.21,
-      "chg": 9.96,
-      "volHand": 3204754,
-      "outerVol": 1774564,
-      "innerVol": 1430191,
-      "activeDiff": 344373,
+      "code": "002197",
+      "prefix": "sz002197",
+      "name": "证通电子",
+      "sector": "计算机设",
+      "boards": 2,
+      "boardLabel": "遗珠补位·2板",
+      "effBoards": 2.0,
+      "signalType": "HIGH_SCORE_GEM",
+      "signalTag": "评分133.4·首封09:25:00·封成比33.6%·封流比5.05% · 黄金换手",
+      "price": 7.05,
+      "preClose": 6.41,
+      "open": 7.05,
+      "openGap": 9.98,
+      "chg": 9.98,
+      "volHand": 818580,
+      "outerVol": 292554,
+      "innerVol": 526025,
+      "activeDiff": -233471,
       "deltaHands": 0,
-      "firstSeal": "09:55:15",
-      "brokenCount": 2,
-      "sealYi": 0.8,
-      "amountYi": 8.83,
-      "sealRatio": 9.1,
-      "sealFlowRatio": 2.12,
-      "sealMvRatio": 2.12,
-      "circMv": 37.8,
-      "turnover": 24.33,
-      "volRatio": 2.82,
-      "limitUp": 2.87,
-      "limitDown": 2.35,
-      "quoteTime": "20261126141121",
+      "firstSeal": "09:25:00",
+      "brokenCount": 1,
+      "sealYi": 1.9,
+      "amountYi": 5.65,
+      "sealRatio": 33.6,
+      "sealFlowRatio": 5.05,
+      "sealMvRatio": 5.05,
+      "circMv": 37.65,
+      "turnover": 15.33,
+      "volRatio": 1.26,
+      "limitUp": 7.05,
+      "limitDown": 5.77,
+      "quoteTime": "20261126141918",
       "bids": [
         [
-          2.87,
-          279299
+          7.05,
+          269285
         ],
         [
-          2.86,
-          1708
+          7.04,
+          346
         ],
         [
-          2.85,
-          326
+          7.03,
+          178
         ],
         [
-          2.84,
-          103
+          7.02,
+          95
         ],
         [
-          2.83,
-          599
+          7.01,
+          132
         ]
       ],
       "asks": [
@@ -821,25 +821,251 @@
           0
         ]
       ],
-      "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 2 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 104.2 分",
+      "lhbSummary": "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选 · 量化评分 133.4 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "遗珠补位·2板",
+          "dept": "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选",
+          "net": "封单1.90亿"
+        },
+        {
+          "side": "共振",
+          "tag": "计算机设",
+          "dept": "所属板块当日涨停 1 家 · 首封 09:25:00",
+          "net": "封成比33.6%"
+        }
+      ],
+      "scoreParts": {
+        "board": 44.0,
+        "sealRatio": 26.9,
+        "sealFlow": 40.0,
+        "sector": 0.0,
+        "early": 12.0,
+        "lhb": 0.0,
+        "turnover": 15.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": -4.5
+      },
+      "backtest": {
+        "wtsRet": "量化评分 133.4",
+        "wtsMdd": "首封 09:25:00",
+        "wtsSharpe": "2连板",
+        "wtsWin": "板块涨停 1 家",
+        "mrRet": "封单 1.90亿",
+        "boRet": "封成比 33.6% / 封流比 5.05%",
+        "note": "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选"
+      }
+    },
+    {
+      "code": "603386",
+      "prefix": "sh603386",
+      "name": "骏亚科技",
+      "sector": "元件",
+      "boards": 1,
+      "boardLabel": "遗珠补位·1板",
+      "effBoards": 1.0,
+      "signalType": "HIGH_SCORE_GEM",
+      "signalTag": "评分112.4·首封09:31:02·封成比79.0%·封流比2.93%",
+      "price": 14.52,
+      "preClose": 13.2,
+      "open": 13.81,
+      "openGap": 4.62,
+      "chg": 10.0,
+      "volHand": 122532,
+      "outerVol": 26566,
+      "innerVol": 95961,
+      "activeDiff": -69395,
+      "deltaHands": 0,
+      "firstSeal": "09:31:02",
+      "brokenCount": 0,
+      "sealYi": 1.39,
+      "amountYi": 1.76,
+      "sealRatio": 79.0,
+      "sealFlowRatio": 2.93,
+      "sealMvRatio": 2.93,
+      "circMv": 47.38,
+      "turnover": 3.75,
+      "volRatio": 0.47,
+      "limitUp": 14.52,
+      "limitDown": 11.88,
+      "quoteTime": "20261126141917",
+      "bids": [
+        [
+          14.52,
+          95583
+        ],
+        [
+          14.51,
+          417
+        ],
+        [
+          14.5,
+          136
+        ],
+        [
+          14.49,
+          45
+        ],
+        [
+          14.48,
+          20
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选 · 量化评分 112.4 分",
+      "lhbSeats": [
+        {
+          "side": "选股",
+          "tag": "遗珠补位·1板",
+          "dept": "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选",
+          "net": "封单1.39亿"
+        },
+        {
+          "side": "共振",
+          "tag": "元件",
+          "dept": "所属板块当日涨停 4 家 · 首封 09:31:02",
+          "net": "封成比79.0%"
+        }
+      ],
+      "scoreParts": {
+        "board": 22.0,
+        "sealRatio": 40.0,
+        "sealFlow": 23.4,
+        "sector": 15.0,
+        "early": 12.0,
+        "lhb": 0.0,
+        "turnover": 0.0,
+        "quantPenalty": 0.0,
+        "brokenPenalty": 0.0
+      },
+      "backtest": {
+        "wtsRet": "量化评分 112.4",
+        "wtsMdd": "首封 09:31:02",
+        "wtsSharpe": "1连板",
+        "wtsWin": "板块涨停 4 家",
+        "mrRet": "封单 1.39亿",
+        "boRet": "封成比 79.0% / 封流比 2.93%",
+        "note": "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选"
+      }
+    },
+    {
+      "code": "603030",
+      "prefix": "sh603030",
+      "name": "全筑股份",
+      "sector": "装修装饰",
+      "boards": 3,
+      "boardLabel": "3板·强分歧回封",
+      "effBoards": 3.0,
+      "signalType": "BROKEN_WARN",
+      "signalTag": "盘中炸板2次·换手24.4% · 黄金换手",
+      "price": 2.87,
+      "preClose": 2.61,
+      "open": 2.72,
+      "openGap": 4.21,
+      "chg": 9.96,
+      "volHand": 3213577,
+      "outerVol": 1774564,
+      "innerVol": 1438891,
+      "activeDiff": 335673,
+      "deltaHands": 0,
+      "firstSeal": "09:55:15",
+      "brokenCount": 2,
+      "sealYi": 0.78,
+      "amountYi": 8.85,
+      "sealRatio": 8.8,
+      "sealFlowRatio": 2.06,
+      "sealMvRatio": 2.06,
+      "circMv": 37.8,
+      "turnover": 24.4,
+      "volRatio": 2.72,
+      "limitUp": 2.87,
+      "limitDown": 2.35,
+      "quoteTime": "20261126141918",
+      "bids": [
+        [
+          2.87,
+          271186
+        ],
+        [
+          2.86,
+          1880
+        ],
+        [
+          2.85,
+          326
+        ],
+        [
+          2.84,
+          103
+        ],
+        [
+          2.83,
+          1398
+        ]
+      ],
+      "asks": [
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ],
+        [
+          0.0,
+          0
+        ]
+      ],
+      "lhbSummary": "维度4[高分歧风控/弱转强锚点]：盘中经历 2 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮 · 量化评分 103.5 分",
       "lhbSeats": [
         {
           "side": "选股",
           "tag": "3板·强分歧回封",
           "dept": "维度4[高分歧风控/弱转强锚点]：盘中经历 2 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮",
-          "net": "封单0.80亿"
+          "net": "封单0.78亿"
         },
         {
           "side": "共振",
           "tag": "装修装饰",
           "dept": "所属板块当日涨停 3 家 · 首封 09:55:15",
-          "net": "封成比9.1%"
+          "net": "封成比8.8%"
         }
       ],
       "scoreParts": {
         "board": 66.0,
-        "sealRatio": 7.3,
-        "sealFlow": 17.0,
+        "sealRatio": 7.0,
+        "sealFlow": 16.5,
         "sector": 8.0,
         "early": 0.0,
         "lhb": 0.0,
@@ -848,12 +1074,12 @@
         "brokenPenalty": -9.0
       },
       "backtest": {
-        "wtsRet": "量化评分 104.2",
+        "wtsRet": "量化评分 103.5",
         "wtsMdd": "首封 09:55:15",
         "wtsSharpe": "3连板",
         "wtsWin": "板块涨停 3 家",
-        "mrRet": "封单 0.80亿",
-        "boRet": "封成比 9.1% / 封流比 2.12%",
+        "mrRet": "封单 0.78亿",
+        "boRet": "封成比 8.8% / 封流比 2.06%",
         "note": "维度4[高分歧风控/弱转强锚点]：盘中经历 2 次炸板大分歧回封，次日高开为超预期弱转强，低开则防核按钮"
       }
     }

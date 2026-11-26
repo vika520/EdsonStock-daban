@@ -785,6 +785,24 @@ def generate_top10_picks(date_str=None, mode="post"):
         ):
             fill_added += 1
 
+    # 梯队4B：遗珠通道（2026-11-26 新增）——综合评分进前 6 但未入任何梯队的票自动补位。
+    # 背景：11-26 证通电子评分 132.7 排全市场第 4（黄金换手/9:25 早盘封板/封成比 33%），
+    # 却因「板数不足进不了高标、板块不在主线进不了卡位、fill 仅 1 席被更高分挤掉」三重门槛漏选。
+    # 遗珠不占 fill 配额，直接补位至 10 席上限；烂板拦截等 add_candidate 既有防线天然生效。
+    # 底线风控：继承卡位池纪律——缩量一字（次日无换手承接）与死亡换手不进遗珠，防止通道变风控后门。
+    gem_added = 0
+    for x in sorted(scored_zt, key=lambda k: -k["score"])[:6]:
+        if x["code"] in picked_codes or len(picked) >= 10:
+            continue
+        if x.get("turnTag") in ("缩量一字", "死亡换手"):
+            continue
+        if add_candidate(
+            x, "遗珠补位·%d板" % x["boards"], "HIGH_SCORE_GEM",
+            "评分%.1f·首封%s·封成比%.1f%%·封流比%.2f%%" % (x["score"], x["firstSeal"], x["sealRatio"], x["sealFlowRatio"]),
+            "遗珠通道[综合评分前6]：评分进入全市场前 6 但未入任何梯队（无高标板数/无主线板块/fill 已满），按纯分值补位防漏选"
+        ):
+            gem_added += 1
+
     # 梯队5：高辨识度分歧烂板 / 炸板池风控与反包观察锚点
     high_div_zt = sorted([x for x in scored_zt if x["brokenCount"] >= 2], key=lambda k: (-k["boards"], -k["brokenCount"]))
     div_added = 0
