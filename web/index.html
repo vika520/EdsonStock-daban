@@ -250,11 +250,12 @@
       <div class="flex items-center gap-2.5 min-w-0">
         <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-red shrink-0" id="liveDot"></span>
         <span class="mono text-emerald-300 truncate" id="connStatusBadge">腾讯 qt.gtimg.cn 实盘直连就绪</span>
-        <span class="text-slate-600">·</span>
         <span class="mono text-slate-400 truncate" id="asofBadge">最新自动选股: --</span>
         <span class="text-slate-600 hidden lg:inline">·</span>
         <span class="text-slate-500 hidden lg:inline">刷新 <strong class="mono text-amber-300" id="liveTickCounter">0</strong></span>
         <span class="badge badge-gold hidden xl:inline-flex !text-[10px]">真实公开数据</span>
+        <span class="text-slate-600 hidden lg:inline">·</span>
+        <span class="text-slate-500 hidden lg:inline">ERP <strong class="mono text-emerald-400" id="kpiErp">--</strong></span>
       </div>
     </div>
 
@@ -273,17 +274,18 @@
           <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">最高板 / 龙头板块</div>
           <div class="kpi-val text-[13px] font-semibold mono text-slate-200" id="kpiMaxBoard">--</div>
         </div>
+        <!-- 三大指数实时（腾讯 qt.gtimg.cn，随盘中轮询刷新；开盘 09:15 起实时更新）-->
         <div class="kpi-item px-4 py-2.5">
-          <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">股债利差 ERP</div>
-          <div class="kpi-val text-[13px] font-semibold mono text-emerald-400" id="kpiErp">--</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">上证指数</div>
+          <div class="kpi-val text-[13px] font-semibold mono text-slate-200"><span id="kpiIdxSH">--</span> <span id="kpiIdxSHChg" class="text-[11px]"></span></div>
         </div>
         <div class="kpi-item px-4 py-2.5">
-          <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">TMT 拥挤度</div>
-          <div class="kpi-val text-[13px] font-semibold mono text-sky-400" id="kpiTmt">--</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">创业板指</div>
+          <div class="kpi-val text-[13px] font-semibold mono text-slate-200"><span id="kpiIdxCYB">--</span> <span id="kpiIdxCYBChg" class="text-[11px]"></span></div>
         </div>
         <div class="kpi-item px-4 py-2.5">
-          <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">两市成交</div>
-          <div class="kpi-val text-[13px] font-semibold mono text-white" id="kpiTotalAmt">--</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">科创50</div>
+          <div class="kpi-val text-[13px] font-semibold mono text-slate-200"><span id="kpiIdxKC">--</span> <span id="kpiIdxKCChg" class="text-[11px]"></span></div>
         </div>
       </div>
     </div>
@@ -2638,6 +2640,67 @@
       return s;
     }
 
+    // ==================== 三大指数实时行情（KPI 带）====================
+    // 腾讯 qt.gtimg.cn JSONP：sh000001 上证 / sz399006 创业板指 / sh000688 科创50。
+    // 独立于个股轮询器（不受「盘中脉冲推送」开关影响）——指数是纯行情展示，关掉脉冲也要能看大盘。
+    // 交易时段 09:15~15:00 每 3 秒刷新（开盘实时）；非交易时段取一次收盘值后停止轮询。
+    const IDX_LIST = [
+      { key: "sh000001", name: "上证指数", priceEl: "kpiIdxSH", chgEl: "kpiIdxSHChg" },
+      { key: "sz399006", name: "创业板指", priceEl: "kpiIdxCYB", chgEl: "kpiIdxCYBChg" },
+      { key: "sh000688", name: "科创50",   priceEl: "kpiIdxKC",  chgEl: "kpiIdxKCChg" },
+    ];
+    let _idxTimer = null, _idxInFlight = false;
+    function _isTradingTime() {
+      const d = new Date();
+      const day = d.getDay();
+      if (day === 0 || day === 6) return false;
+      const hm = d.getHours() * 100 + d.getMinutes();
+      return hm >= 915 && hm <= 1500;
+    }
+    function pollIndexQuotes() {
+      if (_idxInFlight) return;
+      _idxInFlight = true;
+      const old = document.getElementById("tencentIndexJsonp");
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      IDX_LIST.forEach(x => { try { delete window[`v_${x.key}`]; } catch (e) {} });
+      const s = document.createElement("script");
+      s.id = "tencentIndexJsonp";
+      s.src = `https://qt.gtimg.cn/q=${IDX_LIST.map(x => x.key).join(",")}&_t=${Date.now()}`;
+      s.charset = "gbk";
+      const done = () => { _idxInFlight = false; };
+      s.onload = () => {
+        IDX_LIST.forEach(x => {
+          const raw = window[`v_${x.key}`];
+          if (!raw || typeof raw !== "string") return;
+          const p = raw.split("~");
+          if (p.length < 33) return;
+          const price = safeNum(p[3], 0), chgPct = safeNum(p[32], 0);
+          const pe = document.getElementById(x.priceEl), ce = document.getElementById(x.chgEl);
+          if (!pe || !ce || price <= 0) return;
+          pe.textContent = price.toFixed(2);
+          ce.textContent = `${chgPct >= 0 ? "+" : ""}${chgPct.toFixed(2)}%`;
+          // A 股惯例：红涨绿跌；平盘灰
+          const cls = chgPct > 0 ? "text-red-400" : (chgPct < 0 ? "text-emerald-400" : "text-slate-400");
+          ce.className = ce.className.replace(/text-(red|emerald|slate)-\d{3}/g, "").trim() + " " + cls;
+          const t = (p[30] || "").toString();
+          if (t.length >= 12) pe.title = `${x.name} 行情时间 ${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)} ${t.slice(8,10)}:${t.slice(10,12)}:${t.slice(12,14)}`;
+        });
+        done();
+      };
+      s.onerror = done;
+      document.head.appendChild(s);
+    }
+    function startIndexPolling() {
+      if (_idxTimer) return;
+      pollIndexQuotes();
+      const tick = () => {
+        if (_isTradingTime()) pollIndexQuotes();
+      };
+      _idxTimer = setInterval(tick, 3000);
+      // 跨过开盘边界时立即拉一次（避免等到下一个 tick）
+      setTimeout(() => { if (_isTradingTime()) pollIndexQuotes(); }, 1500);
+    }
+
     // 股债利差 ERP（KPI 带）：静默从 vika520/Edsonstock GitHub Raw 拉取，页面打开自动加载。
     // 2026-11-26：原「同步 Raw」按钮已移除——线上是静态站，三个手动按钮本就无法真正计算，
     // 选股数据由 GitHub Actions 定时自动推送（09:25 / 15:05 / 17:35），无需手动触发。
@@ -2649,7 +2712,7 @@
         const snap = erpData.snapshot || {};
         if (!snap.erp) return false;
         const el = document.getElementById("kpiErp");
-        if (el) el.textContent = `${snap.erp}% (${Number(snap.historyPercentile || 78.4).toFixed(1)}%分位)`;
+        if (el) { el.textContent = `${snap.erp}%`; el.title = `股债利差 ERP ${snap.erp}%（${Number(snap.historyPercentile || 78.4).toFixed(1)}%分位）· 仅作波段仓位上限锚`; }
         return true;
       } catch (err) {
         return false;   // 静默失败：KPI 保持「--」，不打扰盯盘
@@ -3084,6 +3147,8 @@
 
       // ERP 静默自动加载（原「同步 Raw」按钮已移除）
       loadErpKpi();
+      // 三大指数实时（交易时段 3s 轮询；非交易时段取一次收盘值）
+      startIndexPolling();
       // 「盘后重选 / 竞价重排」按钮已于 2026-11-26 移除：线上静态站无后端，按钮本就无法真正计算；
       // 选股数据由 GitHub Actions 定时推送（09:25 竞价 / 15:05 / 17:35 盘后），页面 60s 热更新自动同步。
       loadDailyAutoPicks("post", false);
