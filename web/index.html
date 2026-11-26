@@ -186,7 +186,8 @@
     .price-flash-down { animation: flashDown .9s ease-out; }
     .pulse-item { animation: slideIn .42s cubic-bezier(0.22,1,0.36,1) both; }
     .tab-panel { animation: popIn .35s cubic-bezier(0.22,1,0.36,1) both; }
-    .section-title { display: inline-flex; align-items: center; gap: 8px; }
+    .section-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+    /* 字重纪律：中文环境（雅黑/PingFang）只有 400/700 真字重，600 会触发合成伪粗、字形膨胀变形 */
     .section-title i { color: var(--gold); }
     .divider-gold { height: 1px; background: linear-gradient(90deg, rgba(240,180,41,0.45), transparent); }
 
@@ -205,23 +206,7 @@
   <header class="sticky top-0 z-30 border-b border-slate-800/80 backdrop-blur-xl" style="background:rgba(13,17,23,0.82)">
     <div class="max-w-7xl mx-auto px-4 min-h-16 py-2 lg:h-16 lg:py-0 flex flex-wrap lg:flex-nowrap items-center justify-between gap-x-4 gap-y-2">
       <div class="flex items-center gap-3 min-w-0">
-        <!-- 品牌 mark：复用 favicon.svg 图形，加折线生长动画 -->
-        <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-            <rect x="0" y="0" width="64" height="64" rx="14" fill="#0d1117"/>
-            <g fill="none" stroke="#e8ecf3" stroke-width="2.4" stroke-linejoin="round" opacity="0.55">
-              <rect x="6" y="42" width="8" height="12"/><rect x="18" y="36" width="8" height="18"/>
-              <rect x="30" y="29" width="8" height="25"/><rect x="42" y="22" width="8" height="32"/><rect x="54" y="14" width="8" height="40"/>
-            </g>
-            <g fill="none" stroke="#f0b429" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-              <path class="bs" d="M4 50 L21 32 L31 38 L57 7"/>
-              <path class="bs bs2" d="M44 7 H57 V20"/>
-            </g>
-          </svg>
-        </div>
-        <img src="./edsonstock-logo.png" alt="EdsonStock" class="brand-logo hidden sm:block" />
-        <span class="text-slate-600 select-none hidden xl:inline">/</span>
-        <span class="text-sm font-medium text-slate-300 truncate hidden xl:inline">超短游资实盘直连雷达</span>
+        <img src="./edsonstock-logo.png" alt="EdsonStock" class="brand-logo" />
       </div>
 
       <!-- 主导航 -->
@@ -342,7 +327,7 @@
         <!-- 左：脉冲流 -->
         <div class="reveal reveal-2 lg:col-span-3 glass-card rounded-xl p-3.5 flex flex-col h-[900px]">
           <div class="flex items-center justify-between pb-2.5 mb-2.5 divider-gold">
-            <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="zap" class="w-4 h-4"></i>盘口脉冲流</h2>
+            <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="zap" class="w-4 h-4"></i>盘口脉冲流</h2>
             <span class="text-[11px] mono text-slate-400" id="pulseCountBadge">0 条</span>
           </div>
           <div id="pulseFeedList" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
@@ -352,7 +337,7 @@
         <div class="reveal reveal-3 lg:col-span-5 glass-card rounded-xl p-3.5 flex flex-col h-[900px]">
           <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
             <div>
-              <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="activity" class="w-4 h-4"></i>连板梯队与放量监控</h2>
+              <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="activity" class="w-4 h-4"></i>连板梯队与放量监控</h2>
               <p class="text-[11px] text-slate-500 mt-0.5">每轮轮询对比成交增量、量比、主动买卖差与封单变化</p>
             </div>
             <span class="badge badge-muted mono" id="tableCountBadge">--</span>
@@ -389,7 +374,7 @@
           <div class="flex items-start justify-between divider-gold pb-2.5">
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-lg font-bold text-white tracking-tight" id="inspName">--</h2>
+                <h2 class="text-lg font-bold text-white" id="inspName">--</h2>
                 <span class="text-xs mono text-slate-400" id="inspCode">--</span>
                 <span class="badge bg-red-500/15 text-red-300 border border-red-500/30" id="inspBoardTag">--</span>
               </div>
@@ -458,7 +443,7 @@
       <!-- 择时罗盘：左侧大评分环 + 右侧因子 -->
       <div class="reveal reveal-1 glass-card rounded-xl p-4">
         <div class="flex items-center justify-between pb-3 mb-3 divider-gold">
-          <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="compass" class="w-4 h-4"></i>市场择时与仓位罗盘</h2>
+          <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="compass" class="w-4 h-4"></i>市场择时与仓位罗盘</h2>
           <div class="flex items-center gap-3">
             <span id="swingDataTime" class="text-[10px] text-slate-500 mono"></span>
             <button id="btnSwingRefresh" class="btn btn-ghost !py-1 !text-[11px]"><i data-lucide="refresh-cw" class="w-3 h-3"></i>重新计算</button>
@@ -483,12 +468,12 @@
           <div class="lg:col-span-5 grid grid-cols-2 gap-3 content-center">
             <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-3.5">
               <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">周期状态</div>
-              <div id="swingRegimePhase" class="text-xl font-bold tracking-tight">--</div>
+              <div id="swingRegimePhase" class="text-xl font-bold">--</div>
               <div class="text-[10px] text-slate-500 mt-1.5">进攻 ≥65 · 震荡 40~64 · 防守 &lt;40</div>
             </div>
             <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-3.5">
               <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">建议波段仓位</div>
-              <div id="swingRegimePos" class="text-xl font-bold mono text-amber-300 tracking-tight">--</div>
+              <div id="swingRegimePos" class="text-xl font-bold mono text-amber-300">--</div>
               <div class="text-[10px] text-slate-500 mt-1.5">仅指波段子策略仓位</div>
             </div>
           </div>
@@ -503,7 +488,7 @@
       <!-- 轮动雷达 -->
       <div class="reveal reveal-2 glass-card rounded-xl p-4">
         <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-          <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="radar" class="w-4 h-4"></i>行业轮动雷达</h2>
+          <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="radar" class="w-4 h-4"></i>行业轮动雷达</h2>
           <div id="swingSectorStage" class="text-[11px] text-slate-400"></div>
         </div>
         <div class="overflow-x-auto">
@@ -529,7 +514,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div class="reveal reveal-3 lg:col-span-7 glass-card rounded-xl p-4">
           <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-            <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="waves" class="w-4 h-4"></i>波段精选池</h2>
+            <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="waves" class="w-4 h-4"></i>波段精选池</h2>
             <span id="swingPicksCount" class="text-[10px] text-slate-400"></span>
           </div>
           <div id="swingPicksEmpty" class="py-10 text-center text-xs text-slate-500 hidden"></div>
@@ -550,7 +535,7 @@
         </div>
         <div class="reveal reveal-4 lg:col-span-5 glass-card rounded-xl p-4">
           <div class="flex items-center justify-between pb-2.5 mb-3 divider-gold">
-            <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="crosshair" class="w-4 h-4"></i>交易计划</h2>
+            <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="crosshair" class="w-4 h-4"></i>交易计划</h2>
             <span id="swingPlanCode" class="text-[11px] text-slate-400 mono"></span>
           </div>
           <div id="swingPlanBox" class="space-y-2.5"></div>
@@ -560,7 +545,7 @@
       <!-- 账本 -->
       <div class="reveal reveal-5 glass-card rounded-xl p-4">
         <div class="flex items-center justify-between pb-2.5 mb-2 divider-gold">
-          <h2 class="section-title text-xs font-semibold uppercase tracking-wider text-slate-200"><i data-lucide="notebook-pen" class="w-4 h-4"></i>信号追踪账本</h2>
+          <h2 class="section-title text-xs font- uppercase tracking-wider text-slate-200"><i data-lucide="notebook-pen" class="w-4 h-4"></i>信号追踪账本</h2>
           <span id="swingTrackerCount" class="text-[10px] text-slate-400"></span>
         </div>
         <div class="overflow-x-auto max-h-56 overflow-y-auto">
@@ -588,7 +573,7 @@
     <!-- ======== TAB 3: 数据源评测 ======== -->
     <section id="tab-datasource" class="hidden tab-panel space-y-4">
       <div class="reveal reveal-1 glass-card rounded-xl p-4">
-        <h2 class="text-base font-bold text-white tracking-tight mb-1">数据源质量与延迟对比</h2>
+        <h2 class="text-base font-bold text-white mb-1">数据源质量与延迟对比</h2>
         <p class="text-xs text-slate-400 mb-3 leading-relaxed">本终端默认启用动态 <code class="mono text-amber-300">&lt;script src="https://qt.gtimg.cn/q=..."&gt;</code> 实时行情直连引擎，无需后端即可在浏览器内每 2~3 秒刷新五档挂单、量比、换手与主动买卖差。</p>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
@@ -681,7 +666,7 @@
     <section id="tab-webhook" class="hidden tab-panel space-y-4">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div class="reveal reveal-1 lg:col-span-6 glass-card rounded-xl p-4 space-y-3.5">
-          <h2 class="text-base font-bold text-white tracking-tight">信号推送配置</h2>
+          <h2 class="text-base font-bold text-white">信号推送配置</h2>
           <p class="text-xs text-slate-400 leading-relaxed">在本地终端运行以下命令，同时开启涨跌停三池同步与飞书 / 钉钉 / Bark 推送：</p>
           <pre class="bg-slate-950 border border-slate-800 rounded-lg p-3 text-[11px] mono text-sky-300 overflow-x-auto">python3 scripts/live_signal_server.py --port 8899 --webhook "https://你的Webhook"</pre>
           <div class="space-y-3 text-xs pt-1">
