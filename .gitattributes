@@ -1,0 +1,2 @@
+# shell 脚本必须保持 LF：本机是 Windows（core.autocrlf=true），CRLF 会让 NAS 上的 bash 直接报错
+*.sh text eol=lf
