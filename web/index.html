@@ -219,8 +219,13 @@
       <nav class="order-3 lg:order-2 w-full lg:w-auto flex items-center gap-0.5 text-sm whitespace-nowrap overflow-x-auto lg:overflow-visible lg:shrink-0 -mx-1 px-1" id="mainTabs">
         <button data-tab="radar" class="tab-btn is-active px-3 lg:px-3.5 py-2 text-slate-200 shrink-0">盘中信号</button>
         <button data-tab="swing" class="tab-btn px-3 lg:px-3.5 py-2 text-slate-400 shrink-0">趋势波段</button>
-        <button data-tab="datasource" class="tab-btn px-3 lg:px-3.5 py-2 text-slate-400 shrink-0">数据源评测</button>
+        <!-- 数据源评测：2026-11-27 隐藏（保留 tab 与内容，不删） -->
+        <button data-tab="datasource" class="tab-btn hidden px-3 lg:px-3.5 py-2 text-slate-400 shrink-0">数据源评测</button>
         <button data-tab="webhook" class="tab-btn px-3 lg:px-3.5 py-2 text-slate-400 shrink-0">Webhook</button>
+        <a href="https://www.edson.hk/" target="_blank" rel="noopener" title="新窗口打开 A股结构数据"
+           class="tab-btn px-3 lg:px-3.5 py-2 text-slate-400 shrink-0 inline-flex items-center gap-1 no-underline">
+          A股结构数据<i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+        </a>
       </nav>
 
       <!-- 实时控制 -->
@@ -401,6 +406,18 @@
             <div class="p-2 rounded-lg bg-slate-950/60 border border-slate-800/70">
               <div class="text-[10px] text-slate-500">主动买卖差</div>
               <div class="text-xs font-bold mono text-emerald-400 mt-0.5" id="inspActiveDiff">--</div>
+            </div>
+          </div>
+
+          <!-- 分时走势图（腾讯 web.ifzq.gtimg.cn，带 CORS，交易时段每 20s 刷新）-->
+          <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-2.5">
+            <div class="flex items-center justify-between text-[11px] mb-1.5">
+              <span class="font-medium text-slate-200">分时走势</span>
+              <span class="mono text-slate-500" id="inspChartMeta">--</span>
+            </div>
+            <div class="relative h-[150px] w-full">
+              <canvas id="inspChart"></canvas>
+              <div id="inspChartEmpty" class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500 pointer-events-none">分时数据加载中…</div>
             </div>
           </div>
 
@@ -3268,6 +3285,143 @@
       }, 60000);
     });
   
+
+    // ==================== 个股分时走势图（独立模块，不碰引擎）====================
+    // 数据：腾讯 web.ifzq.gtimg.cn/appstock/app/minute/query（响应带 Access-Control-Allow-Origin:*，可直接 fetch）。
+    // 每点格式 "HHMM 价格 累计成交量(手) 累计成交额(元)"；昨收取 qt[4]；均价 = 累计成交额 / (累计成交量×100)。
+    // 触发：监听 #inspCode 文本变化自动切图；交易时段每 20s 刷新当前标的（引擎每轮轮询都会重写 inspCode，
+    // 所以必须按 code + 时间窗节流，而不是每个 mutation 都拉）。非交易时段显示最近交易日全天分时。
+    (function () {
+      const canvas = document.getElementById("inspChart");
+      const empty = document.getElementById("inspChartEmpty");
+      const meta = document.getElementById("inspChartMeta");
+      const codeEl = document.getElementById("inspCode");
+      if (!canvas || !empty || !meta || !codeEl) return;
+      let chart = null, curKey = "", lastFetch = 0, inFlight = false, _queued = false;
+      const UP = "#f87171", DOWN = "#34d399", GOLD = "#f0b429", INK3 = "#566070";
+
+      const _trading = () => {
+        const d = new Date(), day = d.getDay();
+        if (day === 0 || day === 6) return false;
+        const hm = d.getHours() * 100 + d.getMinutes();
+        return hm >= 915 && hm <= 1505;
+      };
+      const _key = () => {
+        const s = (codeEl.textContent || "").trim().toLowerCase();
+        return /^[a-z]{2}\d{6}$/.test(s) ? s : "";
+      };
+      const _fmt = s => s.length >= 4 ? s.slice(0, 2) + ":" + s.slice(2, 4) : s;
+
+      function _build(labels, px, avg, pre, main) {
+        if (chart) { chart.destroy(); chart = null; }
+        const half = Math.max(0.01, Math.max.apply(null, px.map(v => Math.abs(v - pre))) * 1.18);
+        const ctx = canvas.getContext("2d");
+        const g = ctx.createLinearGradient(0, 0, 0, 150);
+        g.addColorStop(0, main + "33"); g.addColorStop(1, main + "00");
+        chart = new Chart(canvas, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              { label: "均价", data: avg, borderColor: GOLD, borderWidth: 1, borderDash: [3, 3], pointRadius: 0, pointHoverRadius: 0, tension: 0, fill: false },
+              { label: "价格", data: px, borderColor: main, borderWidth: 1.6, pointRadius: 0, pointHoverRadius: 3, pointHoverBackgroundColor: main, pointHoverBorderColor: "#0d1117", tension: 0, fill: true, backgroundColor: g },
+              { label: "昨收", data: px.map(() => pre), borderColor: "rgba(232,236,243,0.35)", borderWidth: 1, borderDash: [4, 4], pointRadius: 0, pointHoverRadius: 0, fill: false },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, animation: false, normalized: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "rgba(13,17,23,0.95)", borderColor: "rgba(240,180,41,0.35)", borderWidth: 1,
+                titleColor: "#e8ecf3", bodyColor: "#e8ecf3", padding: 8, displayColors: false,
+                titleFont: { size: 11 }, bodyFont: { size: 11 },
+                filter: it => it.dataset.label !== "昨收",
+                callbacks: {
+                  title: items => _fmt(items[0].label),
+                  label: it => it.dataset.label === "价格"
+                    ? `价格 ${it.parsed.y.toFixed(2)}  (${(it.parsed.y / pre - 1 >= 0 ? "+" : "")}${((it.parsed.y / pre - 1) * 100).toFixed(2)}%)`
+                    : `均价 ${it.parsed.y.toFixed(2)}`,
+                },
+              },
+            },
+            scales: {
+              x: {
+                grid: { display: false }, border: { color: "rgba(232,236,243,0.08)" },
+                ticks: { color: INK3, font: { size: 10 }, maxRotation: 0, autoSkip: false, includeBounds: false,
+                         callback: function (v) { const l = this.getLabelForValue(v); return ["0930", "1030", "1130", "1400", "1500"].indexOf(l) >= 0 ? _fmt(l) : ""; } },
+              },
+              y: {
+                position: "right", min: pre - half, max: pre + half,
+                grid: { color: "rgba(232,236,243,0.05)" }, border: { display: false },
+                ticks: { color: INK3, font: { size: 10 }, maxTicksLimit: 5, callback: v => v.toFixed(2) },
+              },
+            },
+          },
+        });
+      }
+
+      async function load() {
+        const key = _key();
+        if (!key || typeof Chart === "undefined") return;
+        const now = Date.now();
+        if (key === curKey && now - lastFetch < 20000) return;
+        if (inFlight) { _queued = true; return; }   // 有请求在途：记下，完成后补拉（否则切股请求会被丢）
+        inFlight = true;
+        try {
+          const r = await fetch(`https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${key}&_t=${now}`, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const j = await r.json();
+          const node = j && j.data && j.data[key];
+          const qt = (node && node.qt && node.qt[key]) || [];
+          const rows = (node && node.data && node.data.data) || [];
+          const pre = parseFloat(qt[4]) || 0;   // qt: [ ,名称, 代码, 现价, 昨收, 开盘 ...]
+          if (!rows.length || !pre) throw new Error("empty");
+          // 拉取期间用户可能已切到别的股票：以当前 key 为准，过期响应丢弃
+          if (_key() !== key) return;
+          // 每点 "HHMM 价格 累计成交量(手) 累计成交额(元)"：a[1]=价格 a[2]=累计量 a[3]=累计额
+          // 均价 = 累计成交额 / (累计成交量手 × 100)
+          const labels = [], px = [], avg2 = [];
+          rows.forEach(s => {
+            const a = s.split(" "); const price = parseFloat(a[1]), vol = parseFloat(a[2]), amt = parseFloat(a[3]);
+            labels.push(a[0]); px.push(price); avg2.push(vol > 0 ? amt / (vol * 100) : null);
+          });
+          const last = px[px.length - 1];
+          const main = last >= pre ? UP : DOWN;
+          _build(labels, px, avg2, pre, main);
+          const d = String(node.data.date || "");
+          const avgLast = avg2[avg2.length - 1];
+          meta.textContent = `${d.length === 8 ? d.slice(0, 4) + "-" + d.slice(4, 6) + "-" + d.slice(6, 8) : ""} · 均价 ${avgLast ? avgLast.toFixed(2) : "--"}`;
+          empty.classList.add("hidden");
+          curKey = key; lastFetch = Date.now();
+        } catch (e) {
+          if (_key() === key) { empty.textContent = "分时数据暂不可用"; empty.classList.remove("hidden"); }
+        } finally {
+          inFlight = false;
+          if (_queued) { _queued = false; load(); }   // 在途期间又有切换 → 立即补拉当前标的
+        }
+      }
+
+      // 选中标的切换 → 立即重拉（显示加载态）
+      let _lastSeen = "";
+      new MutationObserver(() => {
+        const k = _key();
+        if (k && k !== _lastSeen) {
+          _lastSeen = k;
+          empty.textContent = "分时数据加载中…"; empty.classList.remove("hidden");
+          meta.textContent = "--"; lastFetch = 0;
+          load();
+        }
+      }).observe(codeEl, { childList: true, characterData: true, subtree: true });
+
+      setInterval(() => { if (_trading()) load(); }, 20000);
+      // 切回「盘中信号」tab 时图表容器从 display:none 恢复，强制重算尺寸
+      document.querySelectorAll('.tab-btn[data-tab="radar"]').forEach(b => b.addEventListener("click", () => {
+        setTimeout(() => { if (chart) chart.resize(); }, 60);
+      }));
+      load();
+    })();
 
     // ==================== 动效增强层（独立于上方引擎，只读 DOM，不参与业务逻辑）====================
     (function () {
